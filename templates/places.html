@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}Browse Tourist Places - Explore India PWA{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top: 2.5rem; padding-bottom: 4rem;">
+  <div style="text-align: center; max-width: 600px; margin: 0 auto 2.5rem;">
+    <h1 class="section-title title-serif" style="font-size: 2.3rem; margin-bottom: 0.5rem;">
+      Explore Tourist Destinations
+    </h1>
+    <p style="color: var(--text-muted);">
+      Filter by category or search by location to plan your perfect trip
+    </p>
+  </div>
+
+  <!-- Filter & Search Bar -->
+  <div style="background: var(--bg-glass-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 2.5rem;">
+    <form action="{{ url_for('view_places') }}" method="GET" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+      <div style="flex: 2; min-width: 260px;">
+        <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search places, cities, or keywords...">
+      </div>
+      <div style="flex: 1; min-width: 180px;">
+        <select name="category" class="form-control" style="cursor: pointer;">
+          <option value="">All Categories</option>
+          {% for cat in categories %}
+            <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-filter"></i> Apply Filter
+      </button>
+      {% if search_query or selected_category %}
+        <a href="{{ url_for('view_places') }}" class="btn btn-outline">Reset</a>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- Places Grid -->
+  {% if places %}
+    <div class="places-grid">
+      {% for place in places %}
+        <div class="place-card">
+          <div class="card-img-wrapper">
+            <img src="{{ url_for('static', filename='images/' + place.image) }}" alt="{{ place.name }}" class="card-img" onerror="this.src='/static/images/default_place.jpg'">
+            <span class="category-pill">{{ place.category or 'Heritage' }}</span>
+            <button class="fav-btn {% if place.place_id in user_fav_ids %}active{% endif %}" onclick="toggleFavorite({{ place.place_id }}, this)" title="Add to Favorites">
+              <i class="{% if place.place_id in user_fav_ids %}fas{% else %}far{% endif %} fa-heart"></i>
+            </button>
+          </div>
+          <div class="card-body">
+            <h3 class="place-title">{{ place.name }}</h3>
+            <div class="place-location">
+              <i class="fas fa-location-dot"></i> {{ place.location }}
+            </div>
+            <p class="place-desc">{{ place.description }}</p>
+            <div class="card-info-row">
+              <span class="info-item"><i class="far fa-clock" style="color: var(--primary);"></i> {{ place.timings }}</span>
+              <span class="info-item" style="margin-left: auto;"><i class="fas fa-ticket" style="color: var(--accent);"></i> {{ place.entry_fee }}</span>
+            </div>
+            <a href="{{ url_for('place_details', place_id=place.place_id) }}" class="btn btn-outline" style="width: 100%; margin-top: 0.5rem;">
+              View Details <i class="fas fa-chevron-right"></i>
+            </a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div style="text-align: center; padding: 4rem 1rem; background: var(--bg-glass-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg);">
+      <i class="fas fa-compass-slash" style="font-size: 3rem; color: var(--text-subtle); margin-bottom: 1rem;"></i>
+      <h3 style="font-size: 1.4rem; margin-bottom: 0.5rem;">No Tourist Places Found</h3>
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+        We couldn't find any places matching your search query "{{ search_query }}".
+      </p>
+      <a href="{{ url_for('view_places') }}" class="btn btn-primary">Browse All Destinations</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Database files (optional runtime local db)
+tourist_guide.db
+
+# OS files
+.DS_Store
+Thumbs.db
