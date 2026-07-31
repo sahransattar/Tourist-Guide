@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}My Saved Favorites - Explore India PWA{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top: 2.5rem; padding-bottom: 4rem;">
+  <div style="margin-bottom: 2.5rem;">
+    <h1 class="section-title title-serif" style="font-size: 2.3rem; margin-bottom: 0.5rem;">
+      <i class="fas fa-heart" style="color: #f43f5e;"></i> Saved Favorites
+    </h1>
+    <p style="color: var(--text-muted);">
+      Your bookmarked tourist places available offline anytime
+    </p>
+  </div>
+
+  {% if places %}
+    <div class="places-grid">
+      {% for place in places %}
+        <div class="place-card">
+          <div class="card-img-wrapper">
+            <img src="{{ url_for('static', filename='images/' + place.image) }}" alt="{{ place.name }}" class="card-img" onerror="this.src='/static/images/default_place.jpg'">
+            <span class="category-pill">{{ place.category or 'Heritage' }}</span>
+            <button class="fav-btn active" onclick="toggleFavorite({{ place.place_id }}, this)" title="Remove from Favorites">
+              <i class="fas fa-heart"></i>
+            </button>
+          </div>
+          <div class="card-body">
+            <h3 class="place-title">{{ place.name }}</h3>
+            <div class="place-location">
+              <i class="fas fa-location-dot"></i> {{ place.location }}
+            </div>
+            <p class="place-desc">{{ place.description }}</p>
+            <div class="card-info-row">
+              <span class="info-item"><i class="far fa-clock" style="color: var(--primary);"></i> {{ place.timings }}</span>
+              <span class="info-item" style="margin-left: auto;"><i class="fas fa-ticket" style="color: var(--accent);"></i> {{ place.entry_fee }}</span>
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+              <a href="{{ url_for('place_details', place_id=place.place_id) }}" class="btn btn-primary btn-sm" style="flex: 1;">
+                View Details
+              </a>
+              <button onclick="toggleFavorite({{ place.place_id }}, this)" class="btn btn-danger btn-sm" title="Remove">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div style="text-align: center; padding: 4rem 1rem; background: var(--bg-glass-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); max-width: 600px; margin: 0 auto;">
+      <i class="far fa-heart" style="font-size: 3.5rem; color: var(--text-subtle); margin-bottom: 1.25rem;"></i>
+      <h3 style="font-size: 1.4rem; margin-bottom: 0.5rem;">No Favorites Saved Yet</h3>
+      <p style="color: var(--text-muted); margin-bottom: 1.75rem;">
+        Click the heart icon on any tourist place card to save it to your personal favorites collection!
+      </p>
+      <a href="{{ url_for('view_places') }}" class="btn btn-primary">
+        <i class="fas fa-compass"></i> Explore Destinations
+      </a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
