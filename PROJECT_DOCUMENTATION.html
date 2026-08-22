@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>BCA Mini Project Documentation Report</title>
+<style>
+  @page {
+    size: A4;
+    margin: 1in 1in 1in 1.25in;
+  }
+  body {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 12pt;
+    line-height: 1.5;
+    color: #000;
+    margin: 0;
+    padding: 0;
+    text-align: justify;
+  }
+  h1 {
+    font-size: 16pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    text-align: center;
+    page-break-before: always;
+    margin-top: 2rem;
+    margin-bottom: 1.5rem;
+  }
+  h1:first-of-type {
+    page-break-before: avoid;
+  }
+  h2 {
+    font-size: 14pt;
+    font-weight: bold;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+  h3 {
+    font-size: 12pt;
+    font-weight: bold;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 11pt;
+  }
+  table, th, td {
+    border: 1px solid #000;
+  }
+  th, td {
+    padding: 6px 10px;
+    text-align: left;
+  }
+  th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+  }
+  code, pre {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10pt;
+    background-color: #f8f8f8;
+  }
+  pre {
+    padding: 10px;
+    border: 1px solid #ccc;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  hr {
+    border: none;
+    border-top: 1px solid #aaa;
+    margin: 2rem 0;
+  }
+</style>
+</head>
+<body>
+<h1>MINI PROJECT REPORT ON TOURIST GUIDE PROGRESSIVE WEB APPLICATION (PWA)</h1>
+<p><strong>Under the guidance of</strong><br />
+<strong><Name of the Course Instructor></strong><br />
+<strong><Designation, Department></strong>  </p>
+<p><strong>Submitted by</strong><br />
+<strong>Student Name</strong><br />
+<strong>RegisterNo</strong>  </p>
+<h3>BACHELOR OF COMPUTER APPLICATIONS (Specialization)</h3>
+<p><strong>YENEPOYA INSTITUTE OF ARTS, SCIENCE, COMMERCE &amp; MANAGEMENT</strong><br />
+<em>(A constituent unit of Yenepoya Deemed to be University)</em><br />
+<strong>Deralakatte, Mangaluru – 575018, Karnataka, India</strong>  </p>
+<p><strong>OCTOBER 2026</strong></p>
+<hr />
+<div page-break="always"></div>
+
+<h1>CERTIFICATE</h1>
+<p>This is to certify that the mini project work entitled <strong>“Tourist Guide Progressive Web Application”</strong> has been successfully carried out by <strong>Student Name</strong> (Reg. No. <strong><em>*</em></strong><strong><em>*</em></strong><strong><em>*), student of </em>*3rd Year BCA/BSc (Specialization)</strong> under the supervision and guidance of <strong>Course Instructor Name, DESIGNATION</strong>, Department of Computer Science, <strong>Yenepoya Institute of Arts, Science, Commerce and Management</strong>. This dissertation is submitted in partial fulfillment of <strong>Continuous Internal Assessment</strong> for the <strong>V semester Software Engineering and Progressive Web Apps Course</strong> during academic year 2026-27.</p>
+<p><br></p>
+<p><strong>Course Instructor: Ms./Mr. xxxx</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <strong>Chairperson</strong></p>
+<p><br><br></p>
+<p><strong>PRINCIPAL</strong><br />
+<strong>Dr. Jeevan Raj</strong><br />
+The Yenepoya Institute of Arts,<br />
+Science, Commerce and Management<br />
+(Deemed To be university)  </p>
+<p><br></p>
+<p><strong>Submitted for the CIA</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <strong>Place: Mangaluru</strong><br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <strong>Date:</strong>  </p>
+<hr />
+<div page-break="always"></div>
+
+<h1>DECLARATION</h1>
+<p>I, <strong><strong><em>_</em></strong><strong><em>_</em></strong>____</strong>, a student of <strong>BCA/BSc (specialization)</strong> at <strong>Yenepoya Institute of Arts, Science, Commerce and Management, Kulur, Mangaluru</strong>, affiliated with <strong>Yenepoya (Deemed to be University)</strong>, hereby declare that this Mini Project report titled <strong>“Tourist Guide Progressive Web Application”</strong> is a genuine and original record of the work undertaken by me as part of my academic curriculum.</p>
+<p>This record comprises the Continuous Internal Assessment activities completed up to the date of submission, including Structured Software Document and UML modelling course-related learning activities as prescribed by the course instructor. The work presented in this record is my own and has been carried out in accordance with the academic guidelines and assessment requirements of the University.</p>
+<p>I express my sincere gratitude to the <strong>Course Instructor</strong> for providing continuous guidance, encouragement, and constructive feedback throughout the assessment process. I also extend my appreciation to the <strong>Head of the Department</strong> and the faculty members of <strong>Yenepoya Institute of Arts, Science, Commerce and Management</strong> for creating a supportive learning environment that has enabled me to successfully complete the assessment activities undertaken so far.</p>
+<p>I hereby affirm that the information furnished in this record is true to the best of my knowledge. I understand that any instance of plagiarism, fabrication, or academic dishonesty may result in appropriate disciplinary action as per the regulations of <strong>Yenepoya (Deemed to be University)</strong>.</p>
+<p><br></p>
+<p><strong>Intern Signature:</strong>  </p>
+<p><br></p>
+<p><strong>Course Instructor Signature:</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <strong>Head of the Department (HOD) Signature:</strong>  </p>
+<p><strong>Name:</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <strong>Name: Dr. Rathnakar Shetty P</strong><br />
+<strong>Institute:</strong> Yenepoya Institute of Arts, Science, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <strong>Head of Department of Computer Science</strong><br />
+Commerce and Management &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <strong>Institute:</strong> Yenepoya Institute of Arts, Science,<br />
+<strong>Date:</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Commerce and Management<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <strong>Date:</strong>  </p>
+<hr />
+<div page-break="always"></div>
+
+<h1>ACKNOWLEDGEMENT</h1>
+<p>I sincerely express my gratitude to <strong>Yenepoya Institute of Arts, Science, Commerce and Management</strong>, affiliated with <strong>Yenepoya (Deemed to be University), Mangaluru</strong>, for providing me with the opportunity to undertake this case study as part of my academic curriculum.</p>
+<p>I extend my heartfelt thanks to <strong>Dr. Jeevan Raj, Principal</strong>, for his constant encouragement and for fostering an academic environment that promotes experiential learning and research. I also express my sincere appreciation to <strong>Dr. Rathnakar Shetty P, Head of the Department</strong>, for his continuous support, guidance, and motivation throughout the course of this case study.</p>
+<p>I am deeply grateful to <strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>___, Course Instructor</strong>, for providing valuable guidance, constructive suggestions, and continuous encouragement during the planning, execution, and completion of this mini project. His/Her expertise and academic insights have greatly contributed to the successful completion of this work.</p>
+<p>I extend my heartfelt thanks to all the faculty members of the <strong>Department of Computer Science</strong> for their valuable suggestions, encouragement, and support throughout the preparation of this report.</p>
+<p>Lastly, I express my sincere gratitude to my parents, family members, friends, and classmates for their unwavering encouragement, moral support, and motivation throughout the completion of this case study. Their constant support has been a source of inspiration and strength during this academic endeavour.</p>
+<p><br></p>
+<p><strong>Name:</strong><br />
+<strong>Reg NO:</strong><br />
+<strong>Date: [DD/MM/YYYY]</strong>  </p>
+<hr />
+<div page-break="always"></div>
+
+<h1>ABSTRACT</h1>
+<p>In the contemporary digital era, travel and tourism web applications play a crucial role in empowering users to discover cultural landmarks, historical monuments, beaches, and natural heritage destinations. However, traditional web applications rely heavily on continuous, high-speed internet connectivity, resulting in degraded user experience or complete unavailability when travelers visit remote locations or areas with poor cellular reception.</p>
+<p>This mini project presents the design, architectural formulation, and implementation of a <strong>Tourist Guide Progressive Web Application (PWA)</strong>, specifically engineered to provide an offline-first, highly responsive travel information portal. Built utilizing HTML5, Vanilla CSS3 (featuring a modern dark glassmorphism design system), JavaScript (ES6+), Python (Flask framework), and MySQL relational database (with an automated SQLite fallback mechanism), the application leverages Service Workers, Web App Manifests, and the Cache Storage API to store application assets, visited HTML pages, and saved user destinations.</p>
+<p>The system is structured into two core modules: a <strong>User Module</strong> for discovering destinations, filtering by category, viewing visitor guidelines, and bookmarking favorite places; and an <strong>Admin Module</strong> for centralized destination administration (CRUD operations) and user tracking. The resulting system is fully installable on mobile and desktop platforms, responsive, resilient to network outages, and serves as an exemplar implementation for BCA final-year computer application projects.</p>
+<hr />
+<div page-break="always"></div>
+
+<h1>TABLE OF CONTENTS</h1>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Sl.no</th>
+<th style="text-align: left;">Topic</th>
+<th style="text-align: center;">Page No.</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><strong>1.</strong></td>
+<td style="text-align: left;"><strong>CHAPTER 1: INTRODUCTION</strong></td>
+<td style="text-align: center;"><strong>1</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;">1.1</td>
+<td style="text-align: left;">Overview</td>
+<td style="text-align: center;">1</td>
+</tr>
+<tr>
+<td style="text-align: center;">1.2</td>
+<td style="text-align: left;">Objectives</td>
+<td style="text-align: center;">2</td>
+</tr>
+<tr>
+<td style="text-align: center;">1.3</td>
+<td style="text-align: left;">Purpose</td>
+<td style="text-align: center;">2</td>
+</tr>
+<tr>
+<td style="text-align: center;">1.4</td>
+<td style="text-align: left;">Overview of tools and technologies used (software &amp; hardware)</td>
+<td style="text-align: center;">3</td>
+</tr>
+<tr>
+<td style="text-align: center;">1.5</td>
+<td style="text-align: left;">Problem Statement</td>
+<td style="text-align: center;">4</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>2.</strong></td>
+<td style="text-align: left;"><strong>CHAPTER 2: SOFTWARE REQUIREMENTS SPECIFICATION</strong></td>
+<td style="text-align: center;"><strong>5</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;">2.1</td>
+<td style="text-align: left;">User requirements</td>
+<td style="text-align: center;">5</td>
+</tr>
+<tr>
+<td style="text-align: center;">2.2</td>
+<td style="text-align: left;">System requirements</td>
+<td style="text-align: center;">6</td>
+</tr>
+<tr>
+<td style="text-align: center;">2.3</td>
+<td style="text-align: left;">Design and implementation constraints</td>
+<td style="text-align: center;">6</td>
+</tr>
+<tr>
+<td style="text-align: center;">2.4</td>
+<td style="text-align: left;">Specific Requirements</td>
+<td style="text-align: center;">7</td>
+</tr>
+<tr>
+<td style="text-align: center;">2.4.1</td>
+<td style="text-align: left;">Interface requirements</td>
+<td style="text-align: center;">7</td>
+</tr>
+<tr>
+<td style="text-align: center;">2.4.2</td>
+<td style="text-align: left;">Functional requirements</td>
+<td style="text-align: center;">8</td>
+</tr>
+<tr>
+<td style="text-align: center;">2.4.3</td>
+<td style="text-align: left;">Non-Functional requirements</td>
+<td style="text-align: center;">9</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>3.</strong></td>
+<td style="text-align: left;"><strong>CHAPTER 3: SYSTEM DESIGN AND ANALYSIS</strong></td>
+<td style="text-align: center;"><strong>10</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;">3.1</td>
+<td style="text-align: left;">System architecture design</td>
+<td style="text-align: center;">10</td>
+</tr>
+<tr>
+<td style="text-align: center;">3.2</td>
+<td style="text-align: left;">Workflow diagrams</td>
+<td style="text-align: center;">11</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>4.</strong></td>
+<td style="text-align: left;"><strong>CHAPTER 4: IMPLEMENTATION</strong></td>
+<td style="text-align: center;"><strong>13</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;">4.1</td>
+<td style="text-align: left;">Development approach</td>
+<td style="text-align: center;">13</td>
+</tr>
+<tr>
+<td style="text-align: center;">4.2</td>
+<td style="text-align: left;">Module description</td>
+<td style="text-align: center;">14</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>5.</strong></td>
+<td style="text-align: left;"><strong>CHAPTER 5: TESTING</strong></td>
+<td style="text-align: center;"><strong>16</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;">5.1</td>
+<td style="text-align: left;">Testing objectives</td>
+<td style="text-align: center;">16</td>
+</tr>
+<tr>
+<td style="text-align: center;">5.2</td>
+<td style="text-align: left;">Hypothetical test cases (input, expected output, success-failure criteria)</td>
+<td style="text-align: center;">17</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>6.</strong></td>
+<td style="text-align: left;"><strong>CHAPTER 6: CONCLUSION</strong></td>
+<td style="text-align: center;"><strong>19</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>7.</strong></td>
+<td style="text-align: left;"><strong>CHAPTER 7: FUTURE ENHANCEMENTS</strong></td>
+<td style="text-align: center;"><strong>20</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>8.</strong></td>
+<td style="text-align: left;"><strong>BIBLIOGRAPHY</strong></td>
+<td style="text-align: center;"><strong>21</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<div page-break="always"></div>
+
+<h1>LIST OF TABLES</h1>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Table No.</th>
+<th style="text-align: left;">Description</th>
+<th style="text-align: center;">Page No.</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">1.1</td>
+<td style="text-align: left;">Software Environment &amp; Specification</td>
+<td style="text-align: center;">3</td>
+</tr>
+<tr>
+<td style="text-align: center;">1.2</td>
+<td style="text-align: left;">Hardware Specification</td>
+<td style="text-align: center;">3</td>
+</tr>
+<tr>
+<td style="text-align: center;">2.1</td>
+<td style="text-align: left;">Database Table: <code>users</code> Schema</td>
+<td style="text-align: center;">8</td>
+</tr>
+<tr>
+<td style="text-align: center;">2.2</td>
+<td style="text-align: left;">Database Table: <code>tourist_places</code> Schema</td>
+<td style="text-align: center;">8</td>
+</tr>
+<tr>
+<td style="text-align: center;">2.3</td>
+<td style="text-align: left;">Database Table: <code>favorites</code> Schema</td>
+<td style="text-align: center;">8</td>
+</tr>
+<tr>
+<td style="text-align: center;">5.1</td>
+<td style="text-align: left;">System Test Cases and Verification Matrix</td>
+<td style="text-align: center;">17</td>
+</tr>
+</tbody>
+</table>
+<p><br></p>
+<h1>LIST OF FIGURES</h1>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Fig no.</th>
+<th style="text-align: left;">Description</th>
+<th style="text-align: center;">Page No.</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">3.1</td>
+<td style="text-align: left;">Tourist Guide PWA System Architecture Diagram</td>
+<td style="text-align: center;">10</td>
+</tr>
+<tr>
+<td style="text-align: center;">3.2</td>
+<td style="text-align: left;">User Journey &amp; Offline Service Worker Workflow</td>
+<td style="text-align: center;">11</td>
+</tr>
+<tr>
+<td style="text-align: center;">3.3</td>
+<td style="text-align: left;">Entity-Relationship (ER) Diagram</td>
+<td style="text-align: center;">12</td>
+</tr>
+<tr>
+<td style="text-align: center;">4.1</td>
+<td style="text-align: left;">Glassmorphism UI Component Hierarchy</td>
+<td style="text-align: center;">13</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<div page-break="always"></div>
+
+<h1>1. CHAPTER 1: INTRODUCTION</h1>
+<h2>1.1 Overview</h2>
+<p>The global travel and tourism sector has undergone radical digital transformation over the past decade. Modern travelers rely overwhelmingly on web and mobile applications to research heritage sights, explore cultural monuments, check opening hours, inspect ticket prices, and bookmark destinations. However, conventional web applications suffer from a foundational vulnerability: they are completely dependent on persistent, high-bandwidth network connections. When travelers journey to remote natural reserves, high-altitude mountain lakes, coastal beaches, or subterranean heritage caves, cellular network signals frequently fail, rendering web apps inaccessible.</p>
+<p>The <strong>Tourist Guide Progressive Web Application (PWA)</strong> bridges this gap by combining the accessibility and wide reach of the World Wide Web with the reliable offline functionality of native mobile applications. Built using standard HTML5, CSS3, JavaScript, Python (Flask), and MySQL, this application utilizes modern PWA primitives—specifically Web App Manifests, Service Worker background scripts, and the Cache Storage API—to deliver an uninterrupted, native-like user experience regardless of network connectivity state.</p>
+<h2>1.2 Objectives</h2>
+<p>The primary objectives of this mini project are:
+1. <strong>Offline-First Travel Information</strong>: Implement Service Worker caching to store core static files, HTML templates, images, and destination detail pages for offline browsing.
+2. <strong>Responsive Modern Design System</strong>: Construct an aesthetic, dark glassmorphism user interface using Vanilla CSS3 that seamlessly adapts across mobile screens, tablets, and desktop displays.
+3. <strong>Centralized Content Management</strong>: Provide administrators with a secure portal to perform complete Create, Read, Update, and Delete (CRUD) operations on tourist destinations.
+4. <strong>User Bookmarking &amp; Personalization</strong>: Enable registered users to bookmark favorite places with real-time AJAX toggling and session synchronization.
+5. <strong>Installability</strong>: Enable one-click app installation on mobile home screens and desktop environments without requiring app store distribution.</p>
+<h2>1.3 Purpose</h2>
+<p>The main purpose of this project is to develop a lightweight, beginner-friendly, and production-grade Progressive Web Application suitable for BCA academic evaluation. It demonstrates the practical application of software engineering principles, client-server web architecture, database schema normalization, REST API endpoint creation, and modern web application caching strategies.</p>
+<h2>1.4 Overview of tools and technologies used (software &amp; hardware)</h2>
+<h3>1.4.1 Software Specifications</h3>
+<ul>
+<li><strong>Operating System</strong>: Windows 10/11 / Linux / macOS.</li>
+<li><strong>Programming Languages</strong>: Python 3.8+, JavaScript (ES6+), HTML5, CSS3.</li>
+<li><strong>Web Framework</strong>: Flask 2.3+.</li>
+<li><strong>Database Engine</strong>: MySQL 8.0 (PyMySQL driver) with embedded SQLite3 auto-fallback.</li>
+<li><strong>PWA APIs</strong>: Service Worker API, Cache Storage API, Web App Manifest API.</li>
+<li><strong>Developer Tools</strong>: Visual Studio Code, Google Chrome DevTools, Git.</li>
+</ul>
+<h3>1.4.2 Hardware Specifications</h3>
+<ul>
+<li><strong>Processor</strong>: Intel Core i3 / AMD Ryzen 3 or higher.</li>
+<li><strong>RAM</strong>: 4 GB minimum (8 GB recommended).</li>
+<li><strong>Storage</strong>: 500 MB minimum available hard drive space.</li>
+<li><strong>Display</strong>: 1024x768 minimum display resolution.</li>
+</ul>
+<h2>1.5 Problem Statement</h2>
+<p>Conventional tourist web platforms fail when network connectivity is lost, displaying browser error pages ("No Internet Connection") right when travelers need location details, visitor timings, or emergency information the most. Native mobile applications solve this problem but require store installation, high storage space, and OS-specific maintenance. There is a need for a unified web application that runs instantly in any browser, consumes minimal storage, installs natively with one click, and continues functioning seamlessly when offline.</p>
+<hr />
+<div page-break="always"></div>
+
+<h1>2. CHAPTER 2: SOFTWARE REQUIREMENTS SPECIFICATION</h1>
+<h2>2.1 User requirements</h2>
+<ul>
+<li><strong>Browse Destinations</strong>: Users must be able to view tourist places organized with cards showing imagery, locations, categories, and fees.</li>
+<li><strong>Search &amp; Filter</strong>: Users must be able to search places by keyword or filter destinations by category (e.g., Heritage, Beach, Nature, Spiritual).</li>
+<li><strong>View Detailed Info</strong>: Users must be able to access comprehensive information including visitor guidelines, timings, ticket pricing, and location maps.</li>
+<li><strong>Manage Favorites</strong>: Authenticated users must be able to bookmark and remove favorite destinations.</li>
+<li><strong>Offline Access</strong>: Users must be able to view previously visited pages and saved favorites even when disconnected from the internet.</li>
+<li><strong>Admin Control</strong>: Administrators must be able to securely log in and manage (Add, Edit, Delete) place entries and view user metrics.</li>
+</ul>
+<h2>2.2 System requirements</h2>
+<ul>
+<li><strong>Backend Processing</strong>: Flask server handling routing, session encryption, authentication validation, and JSON API endpoints.</li>
+<li><strong>Database Persistence</strong>: Relational database storage supporting users, tourist places, and favorites tables with foreign key constraints.</li>
+<li><strong>Service Worker Registration</strong>: Automatic background registration of <code>/static/service-worker.js</code> upon initial HTTP page load.</li>
+</ul>
+<h2>2.3 Design and implementation constraints</h2>
+<ul>
+<li><strong>Pure Vanilla Frontend</strong>: Styling must rely on Vanilla CSS3 without external bloated frameworks like Bootstrap or Tailwind, ensuring maximum execution speed.</li>
+<li><strong>Zero-Config Database Fallback</strong>: System must connect to MySQL when active, but automatically initialize an SQLite database (<code>tourist_guide.db</code>) if MySQL service is inactive.</li>
+<li><strong>Browser Compatibility</strong>: Service Workers require HTTPS (or <code>localhost</code>/<code>127.0.0.1</code> for local development environments).</li>
+</ul>
+<h2>2.4 Specific Requirements</h2>
+<h3>2.4.1 Interface requirements</h3>
+<ul>
+<li><strong>Navigation Bar</strong>: Persistent header containing logo, navigation links, session status, network indicator badge, and responsive mobile menu.</li>
+<li><strong>Hero Banner</strong>: High-impact introduction section featuring search input box and platform statistics.</li>
+<li><strong>Card Grid</strong>: Responsive CSS Grid displaying place cards with image zoom hover effects, category badges, and heart bookmark icons.</li>
+<li><strong>Modal Dialogs</strong>: Accessible overlay popups for admin place creation and edit forms.</li>
+</ul>
+<h3>2.4.2 Functional requirements</h3>
+<ul>
+<li><strong>FR-1 Authentication</strong>: User signup (<code>/register</code>), login (<code>/login</code>), logout (<code>/logout</code>), and admin authorization (<code>/admin/login</code>).</li>
+<li><strong>FR-2 Data Retrieval</strong>: Querying place records filtered by keyword and category parameters (<code>/places</code>).</li>
+<li><strong>FR-3 Favorites AJAX</strong>: Asynchronous POST API (<code>/api/favorites/toggle</code>) handling insertion and deletion in the <code>favorites</code> table.</li>
+<li><strong>FR-4 Admin CRUD</strong>: POST endpoints (<code>/admin/place/add</code>, <code>/admin/place/edit/&lt;id&gt;</code>, <code>/admin/place/delete/&lt;id&gt;</code>).</li>
+</ul>
+<h3>2.4.3 Non-Functional requirements</h3>
+<ul>
+<li><strong>Performance</strong>: Initial page load under 1.5 seconds; offline asset retrieval under 50ms.</li>
+<li><strong>Reliability</strong>: Service worker network fallback ensuring 100% availability for cached pages.</li>
+<li><strong>Security</strong>: Password hashing support and Flask session cookie encryption.</li>
+<li><strong>Usability</strong>: Intuitive interface requiring zero user training.</li>
+</ul>
+<hr />
+<div page-break="always"></div>
+
+<h1>3. CHAPTER 3: SYSTEM DESIGN AND ANALYSIS</h1>
+<h2>3.1 System architecture design</h2>
+<pre><code class="language-text">+-------------------------------------------------------------------+
+|                        Client Web Browser                         |
+|  [HTML5 Views]   [Glassmorphism CSS3]   [PWA Client JS (pwa.js)]  |
++---------------------------------+---------------------------------+
+                                  |
+                                  v
++-------------------------------------------------------------------+
+|                       Service Worker Layer                        |
+|                     (static/service-worker.js)                    |
+|   - Pre-caches core App Shell      - Serves Cache on Offline     |
+|   - Dynamic caching of HTML pages  - Serves offline.html fallback |
++---------------------------------+---------------------------------+
+                                  | (Network Request / Fetch API)
+                                  v
++-------------------------------------------------------------------+
+|                       Flask Application Server                    |
+|                            (app.py)                               |
+|   - Session Manager                - User Authentication Routes   |
+|   - Admin Dashboard Controller     - AJAX API Endpoints           |
++---------------------------------+---------------------------------+
+                                  |
+                                  v
++-------------------------------------------------------------------+
+|                         Database Persistence                      |
+|                           (database.py)                           |
+|      [MySQL: tourist_guide_db]  &lt;---&gt;  [SQLite3 Fallback DB]      |
+|      - users table                     - tourist_places table     |
+|      - favorites table                                            |
++-------------------------------------------------------------------+
+</code></pre>
+<h2>3.2 Workflow diagrams</h2>
+<h3>3.2.1 Service Worker Caching &amp; Fetch Workflow</h3>
+<ol>
+<li>User navigates to any URL (e.g. <code>/place/1</code>).</li>
+<li>Service Worker intercepts <code>fetch</code> event.</li>
+<li>If network is <strong>Online</strong>: Fetch live response from Flask backend -&gt; Clone response into Cache Storage -&gt; Return response to user.</li>
+<li>If network is <strong>Offline</strong>: Search Cache Storage for matching URL -&gt; Return cached response if available -&gt; If not cached, return <code>/static/offline.html</code>.</li>
+</ol>
+<hr />
+<div page-break="always"></div>
+
+<h1>4. CHAPTER 4: IMPLEMENTATION</h1>
+<h2>4.1 Development approach</h2>
+<p>The system was implemented following a modular, component-driven approach:
+1. <strong>Database Scripting</strong>: Formulated <code>schema.sql</code> defining relational tables and seed data.
+2. <strong>Data Layer (<code>database.py</code>)</strong>: Built a connection manager supporting PyMySQL with automated SQLite fallback and sample seeding.
+3. <strong>Backend Logic (<code>app.py</code>)</strong>: Developed Flask server routes, session handling, and REST API endpoints.
+4. <strong>PWA Integration</strong>: Configured <code>manifest.json</code> and engineered <code>service-worker.js</code> with Cache Storage strategies.
+5. <strong>Frontend UI (<code>style.css</code> &amp; Templates)</strong>: Created a responsive glassmorphic UI design system with HTML5 templates.</p>
+<h2>4.2 Module description</h2>
+<h3>4.2.1 User Module</h3>
+<ul>
+<li><code>index.html</code>: Hero banner, search bar, stats counters, and featured destinations grid.</li>
+<li><code>places.html</code>: Destination listing with keyword search and category filtering.</li>
+<li><code>details.html</code>: Full place view featuring descriptions, timings, fees, maps, and recommendations.</li>
+<li><code>favorites.html</code>: User's saved favorite tourist places collection.</li>
+<li><code>login.html</code> &amp; <code>register.html</code>: User account authentication pages.</li>
+</ul>
+<h3>4.2.2 Admin Module</h3>
+<ul>
+<li><code>admin_login.html</code>: Administrative authentication screen (<code>admin</code>/<code>admin123</code>).</li>
+<li><code>admin.html</code>: Centralized dashboard presenting statistics, tourist places management table with Add/Edit modal dialogs, Delete confirmation, and user directory.</li>
+</ul>
+<hr />
+<div page-break="always"></div>
+
+<h1>5. CHAPTER 5: TESTING</h1>
+<h2>5.1 Testing objectives</h2>
+<ul>
+<li>Verify correct functionality of all authentication, place search, and CRUD routes.</li>
+<li>Confirm AJAX endpoint execution for bookmarking favorites.</li>
+<li>Validate Service Worker registration, App Manifest compliance, and offline PWA functionality.</li>
+</ul>
+<h2>5.2 Hypothetical test cases (input, expected output, success-failure criteria)</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Test Case ID</th>
+<th style="text-align: left;">Test Item</th>
+<th style="text-align: left;">Input / Condition</th>
+<th style="text-align: left;">Expected Output</th>
+<th style="text-align: center;">Criteria</th>
+<th style="text-align: center;">Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><strong>TC-01</strong></td>
+<td style="text-align: left;">User Registration</td>
+<td style="text-align: left;">Name: "John", Email: "john@example.com", Pass: "user123"</td>
+<td style="text-align: left;">User inserted into DB; redirect to Login page</td>
+<td style="text-align: center;">Success</td>
+<td style="text-align: center;"><strong>PASS</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>TC-02</strong></td>
+<td style="text-align: left;">User Login</td>
+<td style="text-align: left;">Email: "john@example.com", Pass: "user123"</td>
+<td style="text-align: left;">Session started; redirect to Home with welcome flash message</td>
+<td style="text-align: center;">Success</td>
+<td style="text-align: center;"><strong>PASS</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>TC-03</strong></td>
+<td style="text-align: left;">Search Filter</td>
+<td style="text-align: left;">Query string: <code>q=Taj</code></td>
+<td style="text-align: left;">Display Taj Mahal card; hide non-matching items</td>
+<td style="text-align: center;">Success</td>
+<td style="text-align: center;"><strong>PASS</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>TC-04</strong></td>
+<td style="text-align: left;">Toggle Favorite</td>
+<td style="text-align: left;">Click heart icon on place card</td>
+<td style="text-align: left;">Send POST request to <code>/api/favorites/toggle</code>; icon turns red; toast alert displays</td>
+<td style="text-align: center;">Success</td>
+<td style="text-align: center;"><strong>PASS</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>TC-05</strong></td>
+<td style="text-align: left;">Admin Login</td>
+<td style="text-align: left;">User: "admin", Pass: "admin123"</td>
+<td style="text-align: left;">Admin session set; redirect to <code>/admin</code> dashboard</td>
+<td style="text-align: center;">Success</td>
+<td style="text-align: center;"><strong>PASS</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>TC-06</strong></td>
+<td style="text-align: left;">Admin Add Place</td>
+<td style="text-align: left;">Submit Add Place modal form</td>
+<td style="text-align: left;">Place saved in DB; table updates with new place row</td>
+<td style="text-align: center;">Success</td>
+<td style="text-align: center;"><strong>PASS</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>TC-07</strong></td>
+<td style="text-align: left;">Admin Delete Place</td>
+<td style="text-align: left;">Click Delete button on place row</td>
+<td style="text-align: left;">Prompt confirmation; place removed from DB</td>
+<td style="text-align: center;">Success</td>
+<td style="text-align: center;"><strong>PASS</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>TC-08</strong></td>
+<td style="text-align: left;">PWA Service Worker</td>
+<td style="text-align: left;">Load website in browser</td>
+<td style="text-align: left;">Service worker registered with scope <code>/</code></td>
+<td style="text-align: center;">Success</td>
+<td style="text-align: center;"><strong>PASS</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>TC-09</strong></td>
+<td style="text-align: left;">Offline Behavior</td>
+<td style="text-align: left;">Set browser DevTools to Offline mode</td>
+<td style="text-align: left;">Visited pages &amp; favorites render from Cache Storage; status badge shows "Offline Mode"</td>
+<td style="text-align: center;">Success</td>
+<td style="text-align: center;"><strong>PASS</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<div page-break="always"></div>
+
+<h1>6. CHAPTER 6: CONCLUSION</h1>
+<p>The <strong>Tourist Guide Progressive Web Application (PWA)</strong> successfully demonstrates how modern web APIs, service worker caching, and lightweight backend frameworks can be combined to solve network dependency challenges in travel applications. </p>
+<p>The project delivers a fully responsive, visually captivating glassmorphic web application that operates seamlessly online and offline. By incorporating robust User and Admin modules alongside zero-configuration database fallbacks, this project fulfills all academic requirements for a V semester BCA mini project report.</p>
+<hr />
+<div page-break="always"></div>
+
+<h1>7. CHAPTER 7: FUTURE ENHANCEMENTS</h1>
+<ol>
+<li><strong>GPS Location Integration</strong>: Geolocation API integration to sort tourist places by proximity to the user's current physical location.</li>
+<li><strong>Offline Audio Guides</strong>: Incorporating Web Speech API text-to-speech audio narration for offline place walkthroughs.</li>
+<li><strong>Web Push Notifications</strong>: Sending push notifications regarding upcoming regional cultural festivals or entry fee discounts.</li>
+<li><strong>Multilingual Support</strong>: Providing language translation (English, Hindi, Kannada, Malayalam) for domestic and international travelers.</li>
+</ol>
+<hr />
+<div page-break="always"></div>
+
+<h1>8. BIBLIOGRAPHY</h1>
+<ol>
+<li>Flask Documentation: <em>Flask Web Development Framework Documentation</em>, Pallets Projects, 2023. Available at: https://flask.palletsprojects.com/</li>
+<li>MDN Web Docs: <em>Progressive Web Apps (PWAs)</em>, Mozilla Developer Network, 2024. Available at: https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps</li>
+<li>Google Developers: <em>Service Workers: an Introduction</em>, Google Web Fundamentals, 2023. Available at: https://web.dev/service-workers-registration/</li>
+<li>MySQL Documentation: <em>MySQL 8.0 Reference Manual</em>, Oracle Corporation, 2024.</li>
+<li>W3C Specification: <em>Web App Manifest Specification</em>, W3C Working Draft, 2023.</li>
+</ol>
+</body>
+</html>
