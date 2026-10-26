@@ -6,12 +6,15 @@
 <!-- Hero Section -->
 <section class="hero">
   <div class="container">
+    <span class="status-badge" style="background: rgba(6, 182, 212, 0.15); color: var(--primary); border: 1px solid rgba(6, 182, 212, 0.3); margin-bottom: 1.25rem; display: inline-block;">
+      <i class="fas fa-sparkles"></i> Progressive Web App for Academic Excellence
+    </span>
 
     <h1 class="hero-title">
       Discover Incredible <span class="gradient-text title-serif">India</span>
     </h1>
     <p class="hero-desc">
-      Explore top heritage monuments, breathtaking beaches, serene backwaters, and majestic palaces across India — fully functional even when offline!
+      Explore iconic heritage monuments, pristine coastal beaches, serene backwaters, and Himalayan lakes across India — with full offline capability and instant GPS proximity detection.
     </p>
 
     <!-- Search Form -->
@@ -19,7 +22,7 @@
       <form action="{{ url_for('view_places') }}" method="GET" class="search-form">
         <div class="search-input-group">
           <i class="fas fa-magnifying-glass"></i>
-          <input type="text" name="q" class="search-input" placeholder="Search by place name, city, or location (e.g. Taj Mahal, Goa, Jaipur)...">
+          <input type="text" name="q" class="search-input" placeholder="Search by destination name, city, or state (e.g. Taj Mahal, Goa, Agra)...">
         </div>
         <button type="submit" class="btn btn-primary">
           <i class="fas fa-arrow-right"></i> Search
@@ -27,31 +30,77 @@
       </form>
     </div>
 
+    <!-- Category Quick Filter Pills -->
+    <div style="display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap; margin-top: 1.75rem;">
+      <span style="font-size: 0.85rem; color: var(--text-muted); align-self: center; margin-right: 0.25rem;">Popular:</span>
+      <a href="{{ url_for('view_places', category='Heritage') }}" class="pill-shortcut"><i class="fas fa-landmark"></i> Heritage</a>
+      <a href="{{ url_for('view_places', category='Palace') }}" class="pill-shortcut"><i class="fas fa-crown"></i> Palace</a>
+      <a href="{{ url_for('view_places', category='Beach') }}" class="pill-shortcut"><i class="fas fa-umbrella-beach"></i> Beach</a>
+      <a href="{{ url_for('view_places', category='Nature') }}" class="pill-shortcut"><i class="fas fa-water"></i> Nature</a>
+      <a href="{{ url_for('view_places', category='Spiritual') }}" class="pill-shortcut"><i class="fas fa-om"></i> Spiritual</a>
+      <a href="{{ url_for('view_places', category='Adventure') }}" class="pill-shortcut"><i class="fas fa-mountain"></i> Adventure</a>
+    </div>
+
     <!-- Stats Grid -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-number">{{ total_places }}</div>
-        <div class="stat-label"><i class="fas fa-location-dot"></i> Tourist Destinations</div>
+        <div class="stat-label"><i class="fas fa-location-dot" style="color: var(--primary);"></i> Tourist Destinations</div>
       </div>
       <div class="stat-card">
         <div class="stat-number">{{ total_users }}</div>
-        <div class="stat-label"><i class="fas fa-users"></i> Registered Explorers</div>
+        <div class="stat-label"><i class="fas fa-users" style="color: var(--accent);"></i> Registered Explorers</div>
       </div>
       <div class="stat-card">
         <div class="stat-number">100%</div>
-        <div class="stat-label"><i class="fas fa-wifi"></i> Offline PWA Ready</div>
+        <div class="stat-label"><i class="fas fa-wifi" style="color: var(--warning);"></i> Offline PWA Ready</div>
       </div>
     </div>
   </div>
 </section>
 
+<!-- Nearby Destinations Quick Discovery Section -->
+<section style="padding: 2.5rem 0 1rem;">
+  <div class="container">
+    <div style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.12), rgba(99, 102, 241, 0.08)); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); padding: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
+      <div style="max-width: 600px;">
+        <span class="status-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent); border: 1px solid rgba(16, 185, 129, 0.3); margin-bottom: 0.5rem; display: inline-block;">
+          <i class="fas fa-location-crosshairs"></i> Geolocation Proximity
+        </span>
+        <h3 class="title-serif" style="font-size: 1.6rem; color: #fff; margin-bottom: 0.5rem;">
+          Find Destinations Near Your Current Location
+        </h3>
+        <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">
+          Allow voluntary location access in your browser to compute real-time distances using the Haversine formula and discover attractions closest to you.
+        </p>
+      </div>
+      <button type="button" class="btn btn-primary" onclick="locateNearbyPlaces()">
+        <i class="fas fa-location-arrow"></i> Find Nearby Places
+      </button>
+    </div>
+
+    <!-- Container for dynamic geolocation results -->
+    <div id="nearby-container" style="display: none; margin-top: 2rem;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
+        <h3 class="title-serif" style="font-size: 1.5rem; color: var(--accent);">
+          <i class="fas fa-map-pin"></i> Tourist Spots Near You
+        </h3>
+        <button onclick="document.getElementById('nearby-container').style.display='none'" class="btn btn-outline btn-sm">
+          Hide Nearby
+        </button>
+      </div>
+      <div id="nearby-grid" class="places-grid"></div>
+    </div>
+  </div>
+</section>
+
 <!-- Featured Tourist Places Section -->
-<section style="padding: 2rem 0 4rem;">
+<section style="padding: 3rem 0 4rem;">
   <div class="container">
     <div class="section-header">
       <div>
         <h2 class="section-title title-serif">Featured Destinations</h2>
-        <p class="section-subtitle">Handpicked iconic travel spots across India</p>
+        <p class="section-subtitle">Handpicked iconic travel spots across the subcontinent</p>
       </div>
       <a href="{{ url_for('view_places') }}" class="btn btn-outline">
         View All Places <i class="fas fa-arrow-right"></i>
@@ -62,9 +111,9 @@
       {% for place in places %}
         <div class="place-card">
           <div class="card-img-wrapper">
-            <img src="{{ url_for('static', filename='images/' + place.image) }}" alt="{{ place.name }}" class="card-img" onerror="this.src='/static/images/default_place.jpg'">
+            <img src="{{ url_for('static', filename='images/' + place.image) }}" alt="{{ place.name }}" class="card-img" loading="lazy" onerror="this.src='/static/images/default_place.jpg'">
             <span class="category-pill">{{ place.category or 'Heritage' }}</span>
-            <button class="fav-btn {% if place.place_id in user_fav_ids %}active{% endif %}" onclick="toggleFavorite({{ place.place_id }}, this)" title="Add to Favorites">
+            <button class="fav-btn {% if place.place_id in user_fav_ids %}active{% endif %}" onclick="toggleFavorite({{ place.place_id }}, this)" aria-label="Save to Favorites" title="Save to Favorites">
               <i class="{% if place.place_id in user_fav_ids %}fas{% else %}far{% endif %} fa-heart"></i>
             </button>
           </div>
@@ -78,12 +127,56 @@
               <span class="info-item"><i class="far fa-clock" style="color: var(--primary);"></i> {{ place.timings }}</span>
               <span class="info-item" style="margin-left: auto;"><i class="fas fa-ticket" style="color: var(--accent);"></i> {{ place.entry_fee }}</span>
             </div>
-            <a href="{{ url_for('place_details', place_id=place.place_id) }}" class="btn btn-outline" style="width: 100%; margin-top: 0.5rem;">
+            <a href="{{ url_for('place_details', place_id=place.place_id) }}" class="btn btn-outline" style="width: 100%; margin-top: 0.75rem;">
               View Details <i class="fas fa-chevron-right"></i>
             </a>
           </div>
         </div>
       {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- Features Value Proposition Section -->
+<section style="padding: 4rem 0; background: rgba(17, 24, 39, 0.4); border-top: 1px solid var(--border-glass); border-bottom: 1px solid var(--border-glass);">
+  <div class="container">
+    <div style="text-align: center; max-width: 650px; margin: 0 auto 3rem;">
+      <h2 class="section-title title-serif">Engineered for Modern Travelers</h2>
+      <p style="color: var(--text-muted);">
+        A state-of-the-art Progressive Web Application combining modern cloud reliability with local client caching.
+      </p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem;">
+      <div class="feature-card" style="background: var(--bg-glass-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); padding: 2rem;">
+        <div style="width: 52px; height: 52px; border-radius: var(--radius-md); background: rgba(6, 182, 212, 0.15); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1.25rem;">
+          <i class="fas fa-plane-slash"></i>
+        </div>
+        <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem; color: #fff;">100% Offline Capable</h3>
+        <p style="color: var(--text-muted); font-size: 0.92rem; line-height: 1.6;">
+          Service Worker caching ensures all destination guides, images, and cached itineraries remain fully accessible even with zero cellular signal.
+        </p>
+      </div>
+
+      <div class="feature-card" style="background: var(--bg-glass-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); padding: 2rem;">
+        <div style="width: 52px; height: 52px; border-radius: var(--radius-md); background: rgba(16, 185, 129, 0.15); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1.25rem;">
+          <i class="fas fa-mobile-screen"></i>
+        </div>
+        <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem; color: #fff;">Installable Everywhere</h3>
+        <p style="color: var(--text-muted); font-size: 0.92rem; line-height: 1.6;">
+          Install to your Android, iOS, Windows, or Mac home screen with one tap. Zero app store downloads and zero app storage bloat.
+        </p>
+      </div>
+
+      <div class="feature-card" style="background: var(--bg-glass-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); padding: 2rem;">
+        <div style="width: 52px; height: 52px; border-radius: var(--radius-md); background: rgba(99, 102, 241, 0.15); color: var(--accent-secondary); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1.25rem;">
+          <i class="fas fa-shield-halved"></i>
+        </div>
+        <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem; color: #fff;">Enterprise Security</h3>
+        <p style="color: var(--text-muted); font-size: 0.92rem; line-height: 1.6;">
+          Werkzeug cryptographic password hashing, session-bound CSRF protection, brute-force rate-limiting, and SQL parameterized queries.
+        </p>
+      </div>
     </div>
   </div>
 </section>

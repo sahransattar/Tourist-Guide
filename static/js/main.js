@@ -1,6 +1,7 @@
 /* =========================================================
    Tourist Guide PWA - Global Main JavaScript (main.js)
-   UI Interactions, Navigation Toggle, Modals, Search
+   UI Interactions, Navigation Toggle, Modals, Geolocation,
+   Admin Quick Search & Web Share API
    ========================================================= */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -54,14 +55,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 4. Edit Place Modal Population (Admin)
   window.populateEditModal = function (placeData) {
-    document.getElementById('edit-place-id').value = placeData.place_id;
-    document.getElementById('edit-name').value = placeData.name;
-    document.getElementById('edit-location').value = placeData.location;
+    document.getElementById('edit-place-id').value = placeData.place_id || '';
+    document.getElementById('edit-name').value = placeData.name || '';
+    document.getElementById('edit-location').value = placeData.location || '';
     document.getElementById('edit-category').value = placeData.category || 'Heritage';
     document.getElementById('edit-timings').value = placeData.timings || '';
     document.getElementById('edit-entry-fee').value = placeData.entry_fee || '';
     document.getElementById('edit-image').value = placeData.image || 'default_place.jpg';
     document.getElementById('edit-description').value = placeData.description || '';
+    
+    const latField = document.getElementById('edit-latitude');
+    if (latField) latField.value = (placeData.latitude !== null && placeData.latitude !== undefined) ? placeData.latitude : '';
+    
+    const lngField = document.getElementById('edit-longitude');
+    if (lngField) lngField.value = (placeData.longitude !== null && placeData.longitude !== undefined) ? placeData.longitude : '';
 
     const form = document.getElementById('edit-place-form');
     if (form) {
@@ -69,5 +76,140 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     openModal('modal-edit-place');
+  };
+
+  // 5. Admin Table Quick Filter Search
+  window.filterPlacesTable = function () {
+    const input = document.getElementById('admin-place-filter');
+    if (!input) return;
+    const filter = input.value.toLowerCase();
+    const table = document.getElementById('places-table');
+    if (!table) return;
+    const rows = table.getElementsByTagName('tr');
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const text = row.textContent || row.innerText;
+      if (text.toLowerCase().indexOf(filter) > -1) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    }
+  };
+
+  // 6. Voluntary Geolocation Nearby Destinations Discovery
+  window.locateNearbyPlaces = function () {
+    if (!navigator.geolocation) {
+      if (typeof showToast === 'function') {
+        showToast('Geolocation is not supported by your browser.', 'warning');
+      } else {
+        alert('Geolocation is not supported by your browser.');
+      }
+      return;
+    }
+
+    if (typeof showToast === 'function') {
+      showToast('Detecting your GPS location...', 'info');
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        try {
+          const res = await fetch(`/api/nearby?lat=${lat}&lng=${lng}&limit=6`);
+          const data = await res.json();
+
+          if (data.success && data.places && data.places.length > 0) {
+            const container = document.getElementById('nearby-container');
+            const grid = document.getElementById('nearby-grid');
+            if (!container || !grid) return;
+
+            grid.innerHTML = data.places.map((place) => `
+              <div class="place-card">
+                <div class="card-img-wrapper">
+                  <img src="/static/images/${place.image}" alt="${place.name}" class="card-img" onerror="this.src='/static/images/default_place.jpg'">
+                  <span class="category-pill">${place.category || 'Heritage'}</span>
+                  <span class="distance-badge"><i class="fas fa-location-arrow"></i> ${place.distance_km} km away</span>
+                </div>
+                <div class="card-body">
+                  <h3 class="place-title">${place.name}</h3>
+                  <div class="place-location"><i class="fas fa-location-dot"></i> ${place.location}</div>
+                  <p class="place-desc">${place.description}</p>
+                  <div class="card-info-row">
+                    <span class="info-item"><i class="far fa-clock" style="color: var(--primary);"></i> ${place.timings}</span>
+                    <span class="info-item" style="margin-left: auto;"><i class="fas fa-ticket" style="color: var(--accent);"></i> ${place.entry_fee}</span>
+                  </div>
+                  <a href="/place/${place.place_id}" class="btn btn-primary" style="width: 100%; margin-top: 0.75rem;">
+                    View Details & Directions <i class="fas fa-chevron-right"></i>
+                  </a>
+                </div>
+              </div>
+            `).join('');
+
+            container.style.display = 'block';
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            if (typeof showToast === 'function') {
+              showToast(`Found ${data.places.length} destinations near your location!`, 'success');
+            }
+          } else {
+            if (typeof showToast === 'function') {
+              showToast('No nearby destinations found for your coordinates.', 'info');
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching nearby places:', err);
+          if (typeof showToast === 'function') {
+            showToast('Failed to retrieve nearby destinations.', 'danger');
+          }
+        }
+      },
+      (error) => {
+        let msg = 'Unable to retrieve your location.';
+        if (error.code === error.PERMISSION_DENIED) {
+          msg = 'Location permission was denied. You can still search manually above.';
+        }
+        if (typeof showToast === 'function') {
+          showToast(msg, 'warning');
+        } else {
+          alert(msg);
+        }
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
+
+  // 7. Web Share API & Clipboard Copy
+  window.shareDestination = async function (name, location) {
+    const shareData = {
+      title: `${name} - Tourist Guide PWA`,
+      text: `Check out ${name} in ${location} on Explore India!`,
+      url: window.location.href
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (err) {
+        // User cancelled or share error; fallback to clipboard
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      if (typeof showToast === 'function') {
+        showToast('Link copied to clipboard!', 'success');
+      } else {
+        alert('Link copied to clipboard!');
+      }
+    } catch (err) {
+      if (typeof showToast === 'function') {
+        showToast('Please copy the URL from your address bar.', 'info');
+      }
+    }
   };
 });

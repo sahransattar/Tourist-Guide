@@ -7,6 +7,7 @@ Suitable for BCA Final Year Project
 
 import os
 import re
+import math
 import time
 import secrets
 import logging
@@ -86,6 +87,20 @@ def is_safe_url(target):
     ref_url = urlparse(request.host_url)
     test_url = urlparse(urljoin(request.host_url, target))
     return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
+
+
+def haversine(lat1, lon1, lat2, lon2):
+    """
+    Calculate the great circle distance between two coordinates on Earth
+    using the Haversine formula. Returns distance in kilometers.
+    """
+    lat1, lon1, lat2, lon2 = map(math.radians, [float(lat1), float(lon1), float(lat2), float(lon2)])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
+    c = 2 * math.asin(math.sqrt(a))
+    r = 6371.0  # Earth's radius in kilometers
+    return c * r
 
 
 # CSRF Protection Helpers
@@ -221,32 +236,64 @@ def home():
 
 @app.route('/places')
 def view_places():
-    """View & Search Tourist Places route with category/keyword filters."""
+    """View & Search Tourist Places route with category/keyword filters, sorting, and pagination."""
     search_query = request.args.get('q', '').strip()
     category_filter = request.args.get('category', '').strip()
+    sort_by = request.args.get('sort_by', 'name_asc').strip()
 
-    sql = "SELECT * FROM tourist_places WHERE 1=1"
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except (ValueError, TypeError):
+        page = 1
+
+    per_page = 6
+
+    # Base WHERE clause
+    where_sql = " WHERE 1=1"
     params = []
 
     if search_query:
-        sql += " AND (name LIKE %s OR location LIKE %s OR description LIKE %s)"
+        where_sql += " AND (name LIKE %s OR location LIKE %s OR description LIKE %s)"
         pattern = f"%{search_query}%"
         params.extend([pattern, pattern, pattern])
 
     if category_filter and category_filter != 'All':
-        sql += " AND category = %s"
+        where_sql += " AND category = %s"
         params.append(category_filter)
 
-    sql += " ORDER BY name ASC"
+    # Sorting
+    sort_map = {
+        'name_asc': 'name ASC',
+        'name_desc': 'name DESC',
+        'newest': 'place_id DESC',
+        'oldest': 'place_id ASC'
+    }
+    order_by = sort_map.get(sort_by, 'name ASC')
 
     try:
-        places = query_db(sql, tuple(params), fetchall=True) or []
+        # Count total matching places
+        count_sql = "SELECT COUNT(*) as cnt FROM tourist_places" + where_sql
+        cnt_row = query_db(count_sql, tuple(params), fetchone=True)
+        total_items = cnt_row['cnt'] if cnt_row else 0
+        total_pages = max(1, math.ceil(total_items / per_page))
+
+        if page > total_pages and total_items > 0:
+            page = total_pages
+
+        offset = (page - 1) * per_page
+
+        # Fetch paginated places
+        data_sql = f"SELECT * FROM tourist_places{where_sql} ORDER BY {order_by} LIMIT {per_page} OFFSET {offset}"
+        places = query_db(data_sql, tuple(params), fetchall=True) or []
+
         categories = query_db("SELECT DISTINCT category FROM tourist_places WHERE category IS NOT NULL", fetchall=True)
         cat_list = [c['category'] for c in categories] if categories else []
     except Exception as e:
         logger.error("Error retrieving places list: %s", e)
         places = []
         cat_list = []
+        total_items = 0
+        total_pages = 1
 
     user_fav_ids = []
     if 'user_id' in session:
@@ -259,8 +306,16 @@ def view_places():
     return render_template(
         'places.html',
         places=places,
+        total_places=total_items,
+        page=page,
+        total_pages=total_pages,
+        has_prev=(page > 1),
+        has_next=(page < total_pages),
+        prev_num=page - 1,
+        next_num=page + 1,
         search_query=search_query,
         selected_category=category_filter,
+        sort_by=sort_by,
         categories=cat_list,
         user_fav_ids=user_fav_ids
     )
@@ -276,8 +331,7 @@ def place_details(place_id):
         place = None
 
     if not place:
-        flash("Tourist destination not found.", "warning")
-        return redirect(url_for('view_places'))
+        return render_template('404.html'), 404
 
     is_favorite = False
     if 'user_id' in session:
@@ -554,6 +608,53 @@ def api_places():
         return jsonify({'success': False, 'places': [], 'error': 'Could not fetch places.'}), 500
 
 
+@app.route('/api/nearby')
+def api_nearby():
+    """
+    Returns tourist destinations sorted by proximity to the provided lat and lng coordinates.
+    Voluntary browser Geolocation API consumes this endpoint.
+    """
+    try:
+        lat = float(request.args.get('lat', ''))
+        lng = float(request.args.get('lng', ''))
+    except (ValueError, TypeError):
+        return jsonify({
+            'success': False,
+            'message': 'Valid numeric lat and lng query parameters are required.'
+        }), 400
+
+    limit = request.args.get('limit', 6, type=int)
+
+    try:
+        places = query_db(
+            "SELECT * FROM tourist_places WHERE latitude IS NOT NULL AND longitude IS NOT NULL",
+            fetchall=True
+        ) or []
+
+        nearby_places = []
+        for p in places:
+            try:
+                p_lat = float(p['latitude'])
+                p_lng = float(p['longitude'])
+                dist_km = haversine(lat, lng, p_lat, p_lng)
+                p_copy = dict(p)
+                p_copy['distance_km'] = round(dist_km, 1)
+                nearby_places.append(p_copy)
+            except (ValueError, TypeError):
+                continue
+
+        # Sort ascending by distance
+        nearby_places.sort(key=lambda x: x['distance_km'])
+
+        return jsonify({
+            'success': True,
+            'places': nearby_places[:limit]
+        })
+    except Exception as e:
+        logger.error("Error calculating nearby places for (%s, %s): %s", lat, lng, e)
+        return jsonify({'success': False, 'message': 'Failed to calculate nearby destinations.'}), 500
+
+
 @app.route('/api/health')
 def api_health():
     """
@@ -638,7 +739,7 @@ def admin_dashboard():
 @app.route('/admin/place/add', methods=['POST'])
 @admin_required
 def admin_add_place():
-    """Add a new tourist destination."""
+    """Add a new tourist destination with optional coordinates."""
     name = request.form.get('name', '').strip()
     location = request.form.get('location', '').strip()
     description = request.form.get('description', '').strip()
@@ -647,15 +748,26 @@ def admin_add_place():
     category = request.form.get('category', 'Heritage').strip()
     image = request.form.get('image', 'default_place.jpg').strip() or 'default_place.jpg'
 
+    lat_raw = request.form.get('latitude', '').strip()
+    lng_raw = request.form.get('longitude', '').strip()
+    try:
+        latitude = float(lat_raw) if lat_raw else None
+    except ValueError:
+        latitude = None
+    try:
+        longitude = float(lng_raw) if lng_raw else None
+    except ValueError:
+        longitude = None
+
     if not name or not location or not description:
         flash("Name, Location, and Description are required.", "danger")
         return redirect(url_for('admin_dashboard'))
 
     try:
         query_db(
-            """INSERT INTO tourist_places (name, location, description, timings, entry_fee, image, category)
-               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-            (name, location, description, timings, entry_fee, image, category),
+            """INSERT INTO tourist_places (name, location, description, timings, entry_fee, image, category, latitude, longitude)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (name, location, description, timings, entry_fee, image, category, latitude, longitude),
             commit=True
         )
         logger.info("Admin %s added place '%s'", session.get('admin_user'), name)
@@ -679,6 +791,17 @@ def admin_edit_place(place_id):
     category = request.form.get('category', '').strip()
     image = request.form.get('image', '').strip() or 'default_place.jpg'
 
+    lat_raw = request.form.get('latitude', '').strip()
+    lng_raw = request.form.get('longitude', '').strip()
+    try:
+        latitude = float(lat_raw) if lat_raw else None
+    except ValueError:
+        latitude = None
+    try:
+        longitude = float(lng_raw) if lng_raw else None
+    except ValueError:
+        longitude = None
+
     if not name or not location or not description:
         flash("Name, Location, and Description are required.", "danger")
         return redirect(url_for('admin_dashboard'))
@@ -687,9 +810,9 @@ def admin_edit_place(place_id):
         query_db(
             """UPDATE tourist_places 
                SET name = %s, location = %s, description = %s, timings = %s, 
-                   entry_fee = %s, category = %s, image = %s
+                   entry_fee = %s, category = %s, image = %s, latitude = %s, longitude = %s
                WHERE place_id = %s""",
-            (name, location, description, timings, entry_fee, category, image, place_id),
+            (name, location, description, timings, entry_fee, category, image, latitude, longitude, place_id),
             commit=True
         )
         logger.info("Admin %s updated place_id=%s ('%s')", session.get('admin_user'), place_id, name)
@@ -723,6 +846,36 @@ def admin_logout():
     session.clear()
     logger.info("Admin %s logged out", admin_user)
     flash("Admin logged out successfully.", "info")
+    return redirect(url_for('home'))
+
+
+# ---------------------------------------------------------
+# Custom HTTP Error Handlers
+# ---------------------------------------------------------
+
+@app.errorhandler(404)
+def not_found_error(error):
+    """Polished 404 Page Not Found error handler."""
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'message': 'API endpoint not found.'}), 404
+    return render_template('404.html'), 404
+
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    """Polished 500 Internal Server Error handler."""
+    logger.error("Internal Server Error on %s: %s", request.path, error, exc_info=True)
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'message': 'Internal server error occurred.'}), 500
+    return render_template('500.html'), 500
+
+
+@app.errorhandler(403)
+def forbidden_error(error):
+    """403 Forbidden handler."""
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'message': 'Access forbidden or CSRF validation failed.'}), 403
+    flash("Access forbidden or security token expired. Please try again.", "danger")
     return redirect(url_for('home'))
 
 

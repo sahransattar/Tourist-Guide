@@ -37,7 +37,11 @@ CREATE TABLE tourist_places (
     entry_fee VARCHAR(100) DEFAULT 'Free / Nominal',
     image VARCHAR(255) DEFAULT 'default_place.jpg',
     category VARCHAR(50) DEFAULT 'Heritage',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    latitude DECIMAL(10, 7) NULL,
+    longitude DECIMAL(10, 7) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_category (category),
+    INDEX idx_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------
@@ -66,7 +70,7 @@ INSERT INTO users (name, email, password) VALUES
 -- ---------------------------------------------------------
 -- Insert Rich Sample Tourist Places Data
 -- ---------------------------------------------------------
-INSERT INTO tourist_places (name, location, description, timings, entry_fee, image, category) VALUES
+INSERT INTO tourist_places (name, location, description, timings, entry_fee, image, category, latitude, longitude) VALUES
 (
     'Taj Mahal',
     'Agra, Uttar Pradesh',
@@ -74,7 +78,9 @@ INSERT INTO tourist_places (name, location, description, timings, entry_fee, ima
     '6:00 AM - 6:30 PM (Closed on Fridays)',
     '₹50 for Indians, ₹1100 for Foreigners',
     'taj_mahal.jpg',
-    'Heritage'
+    'Heritage',
+    27.1751448,
+    78.0421422
 ),
 (
     'Jaipur City Palace',
@@ -83,7 +89,9 @@ INSERT INTO tourist_places (name, location, description, timings, entry_fee, ima
     '9:30 AM - 5:00 PM',
     '₹200 for Indians, ₹700 for Foreigners',
     'jaipur_palace.jpg',
-    'Palace'
+    'Palace',
+    26.9257745,
+    75.8236582
 ),
 (
     'Goa Beaches & Fort Aguada',
@@ -92,7 +100,9 @@ INSERT INTO tourist_places (name, location, description, timings, entry_fee, ima
     '24 Hours Open (Fort: 9:30 AM - 6:00 PM)',
     'Free Entry (Fort: ₹25)',
     'goa_beach.jpg',
-    'Beach'
+    'Beach',
+    15.4920251,
+    73.7737222
 ),
 (
     'Kerala Backwaters (Alleppey)',
@@ -101,7 +111,9 @@ INSERT INTO tourist_places (name, location, description, timings, entry_fee, ima
     'Best visited 6:00 AM - 7:00 PM',
     'Houseboat rentals from ₹3,000/day',
     'kerala_backwaters.jpg',
-    'Nature'
+    'Nature',
+    9.4980667,
+    76.3388484
 ),
 (
     'Varanasi Ghats & Kashi Vishwanath',
@@ -110,7 +122,9 @@ INSERT INTO tourist_places (name, location, description, timings, entry_fee, ima
     '24 Hours Open (Ganga Aarti: 6:45 PM)',
     'Free Entry',
     'varanasi_ghats.jpg',
-    'Spiritual'
+    'Spiritual',
+    25.3108534,
+    83.0104112
 ),
 (
     'Pangong Lake & Nubra Valley',
@@ -119,5 +133,7 @@ INSERT INTO tourist_places (name, location, description, timings, entry_fee, ima
     'May to October (Daytime)',
     'Inner Line Permit (₹400 approx)',
     'pangong_lake.jpg',
-    'Adventure'
+    'Adventure',
+    33.7595138,
+    78.6674404
 );

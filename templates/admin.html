@@ -8,14 +8,14 @@
   <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2.5rem; flex-wrap: wrap; gap: 1rem;">
     <div>
       <span class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); margin-bottom: 0.5rem; display: inline-block;">
-        <i class="fas fa-shield-halved"></i> Administrator Mode
+        <i class="fas fa-shield-halved"></i> Administrator Mode &bull; Authenticated
       </span>
       <h1 class="section-title title-serif" style="font-size: 2.3rem;">
         Tourist Destinations Management
       </h1>
     </div>
 
-    <div style="display: flex; gap: 1rem;">
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
       <button onclick="openModal('modal-add-place')" class="btn btn-primary">
         <i class="fas fa-plus"></i> Add New Tourist Place
       </button>
@@ -26,7 +26,7 @@
   </div>
 
   <!-- Admin Stats Grid -->
-  <div class="admin-stats-grid">
+  <div class="admin-stats-grid" style="margin-bottom: 2.5rem;">
     <div class="stat-card" style="text-align: left; display: flex; align-items: center; gap: 1.25rem;">
       <div style="width: 50px; height: 50px; border-radius: var(--radius-md); background: rgba(6, 182, 212, 0.15); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
         <i class="fas fa-map-location-dot"></i>
@@ -58,14 +58,20 @@
     </div>
   </div>
 
-  <!-- Places Management Table -->
+  <!-- Places Management Table Section -->
   <div style="margin-bottom: 3.5rem;">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
       <h2 class="title-serif" style="font-size: 1.5rem;">Manage Tourist Places</h2>
+      
+      <!-- Table Quick Filter Search Bar -->
+      <div style="position: relative; width: 300px; max-width: 100%;">
+        <input type="text" id="admin-place-filter" onkeyup="filterPlacesTable()" class="form-control" placeholder="Quick filter places..." style="padding-left: 2.2rem; font-size: 0.88rem;">
+        <i class="fas fa-search" style="position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85rem;"></i>
+      </div>
     </div>
 
     <div class="table-responsive">
-      <table class="data-table">
+      <table class="data-table" id="places-table">
         <thead>
           <tr>
             <th>ID</th>
@@ -73,6 +79,7 @@
             <th>Place Name</th>
             <th>Location</th>
             <th>Category</th>
+            <th>Coordinates (Lat, Lng)</th>
             <th>Entry Fee</th>
             <th>Timings</th>
             <th>Actions</th>
@@ -88,6 +95,13 @@
               <td><strong>{{ p.name }}</strong></td>
               <td><i class="fas fa-location-dot" style="color: var(--primary);"></i> {{ p.location }}</td>
               <td><span class="category-pill" style="position: static; font-size: 0.7rem;">{{ p.category or 'Heritage' }}</span></td>
+              <td style="font-family: monospace; font-size: 0.82rem; color: var(--text-muted);">
+                {% if p.latitude and p.longitude %}
+                  {{ p.latitude }}, {{ p.longitude }}
+                {% else %}
+                  <span style="color: var(--text-subtle);">Not set</span>
+                {% endif %}
+              </td>
               <td>{{ p.entry_fee }}</td>
               <td style="font-size: 0.85rem;">{{ p.timings }}</td>
               <td>
@@ -95,7 +109,7 @@
                   <button onclick='populateEditModal({{ p|tojson }})' class="btn btn-outline btn-sm" title="Edit Place">
                     <i class="fas fa-pen"></i> Edit
                   </button>
-                  <form action="{{ url_for('admin_delete_place', place_id=p.place_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete {{ p.name }}?');" style="display: inline;">
+                  <form action="{{ url_for('admin_delete_place', place_id=p.place_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete {{ p.name }}? This action is permanent.');" style="display: inline;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-danger btn-sm" title="Delete Place">
                       <i class="fas fa-trash"></i> Delete
@@ -110,7 +124,7 @@
     </div>
   </div>
 
-  <!-- Registered Users Table -->
+  <!-- Registered Users Table Section -->
   <div>
     <h2 class="title-serif" style="font-size: 1.5rem; margin-bottom: 1.25rem;">Registered User Directory</h2>
     <div class="table-responsive">
@@ -170,9 +184,21 @@
         </div>
       </div>
 
+      <!-- Coordinates Fields -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
         <div class="form-group">
-          <label class="form-label">Timings</label>
+          <label class="form-label">Latitude (° N)</label>
+          <input type="number" step="any" name="latitude" class="form-control" placeholder="e.g. 28.5244">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Longitude (° E)</label>
+          <input type="number" step="any" name="longitude" class="form-control" placeholder="e.g. 77.1855">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label class="form-label">Visiting Timings</label>
           <input type="text" name="timings" class="form-control" placeholder="e.g. 7:00 AM - 5:00 PM">
         </div>
         <div class="form-group">
@@ -233,9 +259,21 @@
         </div>
       </div>
 
+      <!-- Coordinates Fields -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
         <div class="form-group">
-          <label class="form-label">Timings</label>
+          <label class="form-label">Latitude (° N)</label>
+          <input type="number" step="any" id="edit-latitude" name="latitude" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Longitude (° E)</label>
+          <input type="number" step="any" id="edit-longitude" name="longitude" class="form-control">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label class="form-label">Visiting Timings</label>
           <input type="text" id="edit-timings" name="timings" class="form-control">
         </div>
         <div class="form-group">

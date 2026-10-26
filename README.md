@@ -1,81 +1,109 @@
 # Explore India - Tourist Guide Progressive Web Application (PWA)
 
-A full-stack **Tourist Guide Progressive Web Application (PWA)** developed with Python (Flask), MySQL, HTML5, Vanilla CSS3 (Glassmorphism theme), and JavaScript. Engineered for reliable local execution and production deployment on cloud platforms such as Vercel.
+A full-stack **Tourist Guide Progressive Web Application (PWA)** developed with Python (Flask), MySQL, HTML5, Vanilla CSS3 (Glassmorphism design system), and JavaScript (ES6+). Engineered for reliable local execution, robust security, and cloud deployment on serverless platforms such as Vercel.
+
+**Live Deployment:** https://tourist-guide-mu.vercel.app/  
+**Academic Level:** BCA Final-Year Academic Project  
+**Repository Working Directory:** `c:\PWA Project`
 
 ---
 
-## 🌟 Key Features
+## 🌟 Key Features & Functional Modules
 
-### 👤 User Module
-* **Secure Registration & Login**: Account creation with Werkzeug secure password hashing (`scrypt`) and session authentication.
-* **Legacy Password Migration**: Transparently upgrades legacy plaintext passwords to secure hashes upon login without locking out existing accounts.
-* **Interactive Home Dashboard**: Search hero banner, system statistics, and featured destinations.
-* **Browse & Search Places**: Filter tourist destinations by keyword or category (Heritage, Palace, Beach, Nature, Spiritual, Adventure).
-* **Detailed Destination View**: Historical descriptions, timings, entry fees, category tags, and direct Google Maps links.
-* **Favorites Management**: Save favorite destinations with real-time AJAX bookmarking and per-user session isolation.
+### 👤 1. User & Traveler Module
+* **Secure Registration & Authentication**: User account registration with Werkzeug cryptographic password hashing (`scrypt`).
+* **Transparent Password Migration**: Seamlessly upgrades legacy plaintext passwords to secure hashes upon login without locking out existing accounts.
+* **Interactive Home Dashboard**: Hero banner, system statistics, category pill shortcuts, and featured destinations.
+* **Search, Filtering, Sorting & Pagination**:
+  * Multi-field search querying across destination name, location, and description.
+  * Category filtering (Heritage, Palace, Beach, Nature, Spiritual, Adventure).
+  * Dynamic sorting: Name (A-Z), Name (Z-A), Newest Added, and Oldest First.
+  * Responsive client-side and server-side pagination with previous/next controls.
+* **Destination Details Page**:
+  * Semantic breadcrumb navigation.
+  * Geographic GPS coordinates display.
+  * Real-time Google Maps integration ("Get Directions").
+  * Web Share API integration with automatic fallback to clipboard copy.
+  * Visitor guidelines (visiting hours, entry fee structure, travel category, photography rules).
+  * Context-aware related destinations recommendation.
+* **Favorites Management**:
+  * One-click AJAX bookmarking with animated heart indicators.
+  * Strictly isolated to the authenticated user's session.
+  * Dynamic card removal on the favorites view with graceful empty state.
 
-### 🛡️ Admin Module & Security
-* **Protected Admin Portal**: Centralized `@admin_required` server-side access control.
-* **Zero Hardcoded Secrets**: Admin credentials and session keys configured via environment variables.
-* **Brute-Force Rate Limiting**: Built-in sliding-window rate limiter protecting login endpoints against brute-force attacks.
-* **Full CRUD Management**: Add new destinations, edit existing details, and delete destinations with cascading foreign key cleanup.
-* **User Directory**: View registered user accounts and system metrics.
-* **CSRF Protection**: Token validation on all state-changing forms and AJAX API requests.
+### 📍 2. Geolocation & Proximity Detection Module
+* **Haversine Distance Formula**: Python backend computes great-circle distance between two geographic coordinates:
+  $$d = 2r \arcsin\left(\sqrt{\sin^2\left(\frac{\Delta\phi}{2}\right) + \cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\Delta\lambda}{2}\right)}\right)$$
+* **Voluntary Geolocation API**: Browser requests user location access voluntarily; denies gracefully if permission is withheld.
+* **Nearby API Endpoint (`/api/nearby`)**: Accepts `lat` and `lng` query parameters, calculates distance in kilometers to each tourist attraction, and returns results sorted from nearest to farthest.
 
-### ⚡ PWA Capabilities & Offline Support
-* **Service Worker Caching**: Pre-caches static assets (CSS, JS, images) and dynamically caches visited public destinations.
-* **Sensitive Route Protection**: Never caches authenticated sessions, admin pages, passwords, or user credentials.
-* **Offline Fallback Page**: Custom offline template displayed when network requests fail.
-* **Web App Manifest**: Installable on Android, iOS, and Desktop as a standalone application.
-* **Network Status Badge**: Real-time indicator displaying network status (`● Online` / `⚡ Offline Mode`).
+### 🛡️ 3. Security, Authorization & Hardening
+* **Server-Side Admin Control**: Centralized `@admin_required` decorator guarding all admin views and mutations.
+* **Zero Hardcoded Credentials**: Administrative credentials and Flask secret keys are loaded exclusively from environment variables (`ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `SECRET_KEY`).
+* **Session-Bound CSRF Protection**: Cryptographic token generation (`secrets.token_hex(32)`) and validation on all state-changing HTTP requests (`POST`, `PUT`, `DELETE`).
+* **Brute-Force Rate Limiting**: In-memory sliding-window limiter on `/login` and `/admin/login` (maximum 5 failed attempts per 5-minute window per IP).
+* **Session Security**: Session cookies configured with `HttpOnly`, `SameSite='Lax'`, and dynamic `Secure` in production environments. Sessions are cleared on login and logout to defeat session fixation.
+* **Parameterized SQL Queries**: All database queries use parameter placeholders (`%s` for MySQL, `?` for SQLite) to prevent SQL Injection attacks.
+* **Safe Error Handling**: Polished custom 404 (`templates/404.html`) and 500 (`templates/500.html`) pages. Zero exposure of internal stack traces, connection strings, or credentials to client browsers.
+
+### ⚡ 4. PWA Capabilities & Offline Reliability
+* **Service Worker Caching (v2.0)**: Pre-caches critical app shell, stylesheets, icons, and destination photography.
+* **Cache-First for Static Assets**: Ultra-fast loading of CSS, JavaScript, and imagery from Cache Storage.
+* **Network-First for Dynamic Data**: Tourist places data updates gracefully with cache fallbacks.
+* **Sensitive Route Caching Bypass**: Authenticated pages (`/admin`, `/login`, `/register`, `/logout`, `/favorites`, `/api/favorites`) bypass service worker caches to prevent credential leakage and stale state.
+* **Offline Fallback Page**: Custom offline template displayed when network requests fail while completely disconnected.
+* **Installable Application**: Web App Manifest (`manifest.json`) enabling home screen installation on Android, iOS, Windows, and macOS.
+* **Real-Time Network Status**: Live visual indicator in the navbar (`● Online` / `⚡ Offline Mode`).
 
 ---
 
-## 🛠️ Technology Stack
+## 🛠️ Technology Stack Architecture
 
-| Layer | Technology |
-| :--- | :--- |
-| **Frontend** | HTML5, Vanilla CSS3 (Glassmorphism design system), JavaScript (ES6+) |
-| **Backend** | Python 3, Flask framework, PyMySQL, Cryptography, Werkzeug |
-| **Database** | Persistent MySQL in Production (`tourist_guide_db`) + Local SQLite fallback for development |
-| **PWA** | Web App Manifest, Service Worker API, Cache Storage API |
-| **Icons & Fonts** | FontAwesome 6, Google Fonts (Plus Jakarta Sans & Playfair Display) |
+| Layer | Component | Technologies |
+| :--- | :--- | :--- |
+| **Frontend** | User Interface & Presentation | HTML5, CSS3 (Glassmorphism design tokens, CSS Grid, Flexbox), Vanilla JavaScript (ES6+), FontAwesome 6, Google Fonts |
+| **PWA** | Offline & Client Storage | Web App Manifest, Service Worker API, Cache Storage API |
+| **Backend** | Application Server & REST API | Python 3, Flask framework, Werkzeug security |
+| **Database** | Persistent Data Storage | PyMySQL, Cryptography (`caching_sha2_password`), Managed MySQL in Production (TiDB Cloud / Aiven) + SQLite for local development |
+| **Deployment**| Cloud Hosting | Vercel Serverless Functions (`vercel.json`) |
 
 ---
 
-## 📁 Project Folder Structure
+## 📁 Project Directory Structure
 
 ```text
 TouristGuide/ (c:\PWA Project)
 ├── static/
 │   ├── css/
-│   │   └── style.css            # Custom CSS design system (Glassmorphism, animations)
+│   │   └── style.css            # Glassmorphism design system, responsive styles, pagination
 │   ├── js/
-│   │   ├── main.js              # Navbar toggle, auto-dismiss alerts, admin modals
+│   │   ├── main.js              # Navbar toggle, alert dismiss, modals, table search, geolocation, Web Share
 │   │   ├── favorites.js         # Favorite add/remove AJAX handler with CSRF header
-│   │   └── pwa.js               # Service Worker registration & install prompt
-│   ├── images/                  # Tourist place images & PWA icons
+│   │   └── pwa.js               # Service Worker registration & install prompt handler
+│   ├── images/                  # Destination photography & PWA icons
 │   │   ├── icon-192.png
 │   │   ├── icon-512.png
-│   │   └── places/              # Destination photography
+│   │   └── *.jpg                # Taj Mahal, Jaipur, Goa, Kerala, Varanasi, Pangong
 │   ├── manifest.json            # PWA Web App Manifest configuration
-│   ├── service-worker.js        # Offline caching strategy with sensitive route bypass
+│   ├── service-worker.js        # Offline caching strategy with sensitive route bypass (v2.0)
 │   └── offline.html             # Offline fallback page
 ├── templates/
 │   ├── base.html                # Master layout template (CSRF meta tag, navbar, footer)
-│   ├── index.html               # Home page
-│   ├── places.html              # Browse & Filter Tourist Places
-│   ├── details.html             # Place details view
+│   ├── index.html               # Home page (Hero, stats, categories, nearby widget, featured grid)
+│   ├── places.html              # Browse, filter, sort, and paginate destinations
+│   ├── details.html             # Place details view (Directions, GPS coords, Web Share, visitor guide)
 │   ├── favorites.html           # Saved favorites page
 │   ├── login.html               # User login form
 │   ├── register.html            # User registration form
 │   ├── admin_login.html         # Admin login form
-│   └── admin.html               # Admin dashboard (Add/Edit/Delete modals)
+│   ├── admin.html               # Admin dashboard (Instant search, Add/Edit with coords, Delete)
+│   ├── 404.html                 # Custom 404 Not Found error page
+│   └── 500.html                 # Custom 500 Internal Server Error page
 ├── tests/
-│   └── test_app.py              # Automated test suite (Registration, Auth, Admin, CSRF, PWA)
-├── app.py                       # Flask server & routes with CSRF and rate limiting
+│   └── test_app.py              # Automated test suite (24 unit tests covering auth, CRUD, nearby, CSRF)
+├── app.py                       # Flask server & routes with CSRF, rate limiting, and Haversine API
 ├── database.py                  # Database abstraction (Production MySQL & Local SQLite fallback)
-├── schema.sql                   # MySQL database creation & seed data script
+├── schema.sql                   # MySQL database creation & seed data script with GPS coordinates
 ├── generate_images.py           # Sample asset generator script
 ├── requirements.txt             # Python dependencies
 ├── vercel.json                  # Vercel deployment configuration
@@ -84,95 +112,80 @@ TouristGuide/ (c:\PWA Project)
 
 ---
 
-## 🔐 Required Environment Variables
+## 🔐 Environment Variables Specification
 
-Never commit real passwords or secret keys into source code or Git. Configure these variables in your local environment or in Vercel:
+Never commit passwords or secret tokens into Git. Configure these variables in your hosting provider (Vercel) or local environment:
 
-| Environment Variable | Required in Production? | Description | Example / Placeholder |
+| Variable | Required in Production? | Description | Example / Generator |
 | :--- | :---: | :--- | :--- |
 | `SECRET_KEY` | **Yes** | Flask session encryption key | `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `ADMIN_USERNAME` | **Yes** | Admin portal username | `admin` |
-| `ADMIN_PASSWORD_HASH` | **Yes** | Werkzeug secure hash of admin password | `scrypt:32768:8:1$...` |
-| `DATABASE_URL` | Optional (or use `MYSQL_*`) | Single connection URL for cloud MySQL | `mysql://user:pass@host.region.provider.com:3306/db?ssl-mode=REQUIRED` |
-| `MYSQL_HOST` | **Yes** (if no `DATABASE_URL`) | MySQL hostname | `gateway01.ap-southeast-1.prod.aws.tidbcloud.com` |
-| `MYSQL_PORT` | No (default `3306`) | MySQL port | `4000` or `3306` |
-| `MYSQL_USER` | **Yes** (if no `DATABASE_URL`) | MySQL database username | `your_db_username` |
-| `MYSQL_PASSWORD` | **Yes** (if no `DATABASE_URL`) | MySQL database password | `your_db_password` |
-| `MYSQL_DB` | **Yes** (if no `DATABASE_URL`) | MySQL database name | `tourist_guide_db` |
-| `MYSQL_SSL` | Optional | Enable TLS/SSL connection (required by most cloud providers) | `true` |
-
----
-
-## 🛠️ Generating Secrets and Password Hashes
-
-Run these commands in your terminal to generate secure production values:
-
-### 1. Generate Flask `SECRET_KEY`
-```bash
-python -c "import secrets; print(secrets.token_hex(32))"
-```
-
-### 2. Generate `ADMIN_PASSWORD_HASH`
-Replace `YourStrongPasswordHere` with your chosen admin password:
-```bash
-python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('YourStrongPasswordHere'))"
-```
-Copy the printed output (e.g., `scrypt:32768:8:1$...`) and set it as `ADMIN_PASSWORD_HASH`.
+| `ADMIN_PASSWORD_HASH` | **Yes** | Werkzeug secure hash of admin password | `python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('StrongPassword123!'))"` |
+| `DATABASE_URL` | Optional | Complete MySQL connection URI | `mysql://user:pass@host:4000/db?ssl-mode=REQUIRED` |
+| `MYSQL_HOST` | **Yes** (if no `DATABASE_URL`) | Hostname of MySQL server | `gateway01.ap-southeast-1.prod.aws.tidbcloud.com` |
+| `MYSQL_PORT` | No (default `3306`) | Port of MySQL server | `4000` or `3306` |
+| `MYSQL_USER` | **Yes** (if no `DATABASE_URL`) | Database username | `your_user` |
+| `MYSQL_PASSWORD` | **Yes** (if no `DATABASE_URL`) | Database password | `your_password` |
+| `MYSQL_DB` | **Yes** (if no `DATABASE_URL`) | Database name | `tourist_guide_db` |
+| `MYSQL_SSL` | Optional | Enforce SSL / TLS connection | `true` |
 
 ---
 
 ## 💻 Local Development Setup
 
-### 1. Install Dependencies
+### 1. Prerequisites
+* Python 3.9+
+* pip
+
+### 2. Install Dependencies
 ```bash
 cd "c:\PWA Project"
 python -m pip install -r requirements.txt
 ```
 
-### 2. Start Local Server
-By default, the application runs locally using an embedded SQLite database (`tourist_guide.db`) pre-seeded with sample destinations:
-```bash
-python app.py
-```
-Visit **`http://127.0.0.1:5000`** in your browser.
-
-### 3. Run Automated Tests
+### 3. Run Automated Test Suite
+Run the 24 automated unit tests:
 ```bash
 python -m unittest tests/test_app.py
 ```
 
+### 4. Start Local Development Server
+```bash
+python app.py
+```
+Open **`http://127.0.0.1:5000`** in any web browser.
+
 ---
 
-## 🚀 Vercel Production Deployment Guide
+## 🚀 Cloud Production Deployment (Vercel)
 
-Vercel functions run in serverless containers with a **read-only filesystem**. Storing a local SQLite database file in the project folder will cause `attempt to write a readonly database` errors whenever a user registers. A persistent external database is required in production.
+### Why Vercel requires an external database:
+Vercel serverless functions execute inside ephemeral Docker containers where the filesystem is **read-only (`/var/task`)**. Storing an embedded SQLite file causes runtime write exceptions (`attempt to write a readonly database`) whenever a user registers or saves a favorite. A managed external MySQL database solves this permanently.
 
-### Step 1: Create a Free Cloud MySQL Database
-You can obtain a free, managed cloud MySQL database from any of the following providers:
-* **TiDB Cloud** (Free Serverless Tier — Recommended, 5GB storage, 99.99% uptime, built-in SSL)
-* **Aiven for MySQL** (Free tier)
-* **Clever Cloud** or **Railway** (Free MySQL addon)
+### Step 1: Provision a Free Cloud MySQL Database
+1. Go to [TiDB Cloud](https://tidbcloud.com/) (or [Aiven](https://aiven.io/)) and create a free Serverless Tier cluster.
+2. Select your closest AWS or Google Cloud region.
+3. Note your connection details (Host, Port, User, Password, Database Name).
 
-### Step 2: Initialize Database Tables
-Run the [`schema.sql`](file:///c:/PWA%20Project/schema.sql) script in your cloud database provider's web SQL console, or allow the application to automatically create tables on first run via `database.py`.
-
-### Step 3: Configure Environment Variables in Vercel
-1. Log into your [Vercel Dashboard](https://vercel.com/).
-2. Select your **`tourist-guide`** project.
-3. Navigate to **Settings** -> **Environment Variables**.
-4. Add the following variables:
-   * `SECRET_KEY` = `<your_generated_hex_secret>`
+### Step 2: Configure Environment Variables in Vercel
+1. Log into your [Vercel Dashboard](https://vercel.com/) and open the **`tourist-guide`** project.
+2. Go to **Settings** -> **Environment Variables**.
+3. Add the following variables:
+   * `SECRET_KEY` = `<your_hex_secret>`
    * `ADMIN_USERNAME` = `admin`
    * `ADMIN_PASSWORD_HASH` = `<your_generated_scrypt_hash>`
-   * `DATABASE_URL` = `mysql://<user>:<password>@<host>:<port>/<dbname>?ssl-mode=REQUIRED`
-     *(Or individually: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DB`, `MYSQL_SSL=true`)*
+   * `MYSQL_HOST` = `<your_cloud_host>`
+   * `MYSQL_PORT` = `4000` (or `3306`)
+   * `MYSQL_USER` = `<your_db_username>`
+   * `MYSQL_PASSWORD` = `<your_db_password>`
+   * `MYSQL_DB` = `tourist_guide_db`
+   * `MYSQL_SSL` = `true`
 
-### Step 4: Redeploy on Vercel
-1. In Vercel Dashboard, go to the **Deployments** tab.
-2. Click **Redeploy** on the latest deployment (or push a new commit to your connected GitHub repository).
-3. Once the deployment finishes, visit:
+### Step 3: Redeploy and Verify Health
+1. In Vercel, go to the **Deployments** tab and click **Redeploy**.
+2. Once complete, visit the health monitoring endpoint:
    `https://tourist-guide-mu.vercel.app/api/health`
-4. Confirm the response:
+3. Verify that the response returns HTTP 200 with `connected: true`:
    ```json
    {
      "status": "healthy",
@@ -186,8 +199,23 @@ Run the [`schema.sql`](file:///c:/PWA%20Project/schema.sql) script in your cloud
    }
    ```
 
-### Step 5: Troubleshooting & Inspecting Logs
-If registration or database operations ever encounter an issue:
-1. In the Vercel Dashboard, navigate to **Deployments** -> Click on your active deployment -> **Functions** (or **Logs**).
-2. Filter by `[DATABASE ERROR]` or `[SECURITY WARNING]`.
-3. The server logs provide safe, detailed diagnostic information without exposing user passwords or sensitive tokens.
+---
+
+## 🎓 BCA Academic Viva-Voce & Presentation Guide
+
+### Frequently Asked Questions by Project Examiners
+
+#### Q1: What is a Progressive Web Application (PWA) and why is it beneficial for tourism?
+> **Answer**: A Progressive Web Application is a web application that utilizes modern browser APIs—primarily Web App Manifest and Service Workers—to deliver native-app-like experiences. In tourism, travelers often experience intermittent or non-existent cellular connectivity in remote heritage areas or mountain regions. Explore India PWA caches destination descriptions, coordinates, visiting hours, and imagery, allowing tourists to access vital guide information completely offline without having to download a large native app from an app store.
+
+#### Q2: What caused the registration bug on Vercel and how did you resolve it?
+> **Answer**: The live registration failure was caused by Vercel's serverless architecture, which enforces a strictly read-only filesystem (`/var/task`). The original codebase attempted to write user registrations to an embedded SQLite file on this read-only disk, triggering the exception `attempt to write a readonly database`. We resolved this by re-architecting the database layer in `database.py` to connect to a managed external cloud MySQL database using SSL/TLS encryption in production while maintaining a convenient SQLite fallback for offline local development.
+
+#### Q3: How is user password security handled?
+> **Answer**: Plaintext passwords are never stored. Passwords are cryptographically salted and hashed using Werkzeug's `scrypt` algorithm (`generate_password_hash` and `check_password_hash`). To preserve user accounts without disruption, we implemented a transparent migration routine: on their next successful login, legacy plaintext accounts are automatically upgraded to secure hashes in the database.
+
+#### Q4: How does the "Nearby Destinations" feature compute distances?
+> **Answer**: The feature uses the mathematical **Haversine formula** implemented in Python (`haversine(lat1, lon1, lat2, lon2)`). When the user voluntarily permits browser Geolocation (`navigator.geolocation.getCurrentPosition`), their latitude and longitude are submitted to `/api/nearby`. The server calculates the spherical distance in kilometers between the user's coordinates and all tourist places, returning the closest attractions sorted in ascending distance order.
+
+#### Q5: How is CSRF (Cross-Site Request Forgery) mitigated?
+> **Answer**: We implemented session-bound cryptographic CSRF tokens using `secrets.token_hex(32)`. Every state-changing HTML form includes a hidden `csrf_token` input field, and AJAX requests transmit the token via the `X-CSRFToken` HTTP header. The `@app.before_request` hook validates the submitted token against the active session's expected token using timing-safe comparison (`secrets.compare_digest`).

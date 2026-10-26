@@ -426,6 +426,97 @@ class TouristGuideAppTestCase(unittest.TestCase):
         self.assertEqual(data['status'], 'healthy')
         self.assertTrue(data['database']['connected'])
 
+    # -----------------------------------------------------
+    # 6. Geolocation & Haversine Proximity Tests
+    # -----------------------------------------------------
+
+    def test_nearby_places_api_validation(self):
+        """Verify /api/nearby requires numeric lat and lng query params."""
+        res_missing = self.client.get('/api/nearby')
+        self.assertEqual(res_missing.status_code, 400)
+        data = res_missing.get_json()
+        self.assertFalse(data['success'])
+
+        res_invalid = self.client.get('/api/nearby?lat=abc&lng=xyz')
+        self.assertEqual(res_invalid.status_code, 400)
+
+    def test_nearby_places_api_distance_ordering(self):
+        """Verify /api/nearby returns destinations ordered by proximity (Haversine formula)."""
+        # Agra coordinates: 27.1751, 78.0421 (Taj Mahal)
+        res = self.client.get('/api/nearby?lat=27.1751&lng=78.0421&limit=3')
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data['success'])
+        self.assertTrue(len(data['places']) > 0)
+        # Closest destination to Agra coordinates should be Taj Mahal
+        first_place = data['places'][0]
+        self.assertEqual(first_place['name'], 'Taj Mahal')
+        self.assertLess(first_place['distance_km'], 1.0)
+
+    # -----------------------------------------------------
+    # 7. Sorting & Pagination Tests
+    # -----------------------------------------------------
+
+    def test_places_sorting_and_pagination(self):
+        """Verify sorting by name descending and pagination controls."""
+        res_desc = self.client.get('/places?sort_by=name_desc')
+        self.assertEqual(res_desc.status_code, 200)
+        self.assertIn(b'Varanasi', res_desc.data)
+
+        res_page = self.client.get('/places?page=1')
+        self.assertEqual(res_page.status_code, 200)
+        self.assertIn(b'Showing', res_page.data)
+
+    # -----------------------------------------------------
+    # 8. Custom Error Handling Tests
+    # -----------------------------------------------------
+
+    def test_custom_404_error_page(self):
+        """Verify non-existent place and URL returns custom 404 template with 404 status."""
+        res_place = self.client.get('/place/999999')
+        self.assertEqual(res_place.status_code, 404)
+        self.assertIn(b'Destination Not Found', res_place.data)
+
+        res_route = self.client.get('/unknown-page-route')
+        self.assertEqual(res_route.status_code, 404)
+        self.assertIn(b'Destination Not Found', res_route.data)
+
+    def test_admin_add_place_with_coordinates(self):
+        """Verify admin can add destination with geographic GPS coordinates."""
+        login_res = self.client.get('/admin/login')
+        csrf_token = self.get_csrf_token(login_res.data)
+        self.client.post('/admin/login', data={
+            'csrf_token': csrf_token,
+            'username': 'testadmin',
+            'password': 'SuperSecretAdminPass123!'
+        })
+
+        admin_res = self.client.get('/admin')
+        admin_csrf = self.get_csrf_token(admin_res.data)
+
+        new_place_data = {
+            'csrf_token': admin_csrf,
+            'name': 'Hampi Ruins',
+            'location': 'Hampi, Karnataka',
+            'description': 'Ancient capital of Vijayanagara empire.',
+            'category': 'Heritage',
+            'timings': '6:00 AM - 6:00 PM',
+            'entry_fee': '₹40',
+            'image': 'default_place.jpg',
+            'latitude': '15.3350',
+            'longitude': '76.4600'
+        }
+        res = self.client.post('/admin/place/add', data=new_place_data, follow_redirects=True)
+        self.assertEqual(res.status_code, 200)
+
+        place = database.query_db("SELECT * FROM tourist_places WHERE name = 'Hampi Ruins'", fetchone=True)
+        self.assertIsNotNone(place)
+        self.assertAlmostEqual(float(place['latitude']), 15.3350, places=3)
+        self.assertAlmostEqual(float(place['longitude']), 76.4600, places=3)
+
+        # Cleanup
+        database.query_db("DELETE FROM tourist_places WHERE name = 'Hampi Ruins'", commit=True)
+
 
 class DatabaseProductionBehaviorTestCase(unittest.TestCase):
 

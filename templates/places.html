@@ -4,22 +4,31 @@
 
 {% block content %}
 <div class="container" style="padding-top: 2.5rem; padding-bottom: 4rem;">
-  <div style="text-align: center; max-width: 600px; margin: 0 auto 2.5rem;">
+  <div style="text-align: center; max-width: 650px; margin: 0 auto 2rem;">
     <h1 class="section-title title-serif" style="font-size: 2.3rem; margin-bottom: 0.5rem;">
       Explore Tourist Destinations
     </h1>
     <p style="color: var(--text-muted);">
-      Filter by category or search by location to plan your perfect trip
+      Filter by category, sort results, or use your GPS location to discover India's greatest treasures
     </p>
   </div>
 
-  <!-- Filter & Search Bar -->
-  <div style="background: var(--bg-glass-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 2.5rem;">
-    <form action="{{ url_for('view_places') }}" method="GET" style="display: flex; gap: 1rem; flex-wrap: wrap;">
-      <div style="flex: 2; min-width: 260px;">
-        <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search places, cities, or keywords...">
+  <!-- Filter, Search, and Sort Bar -->
+  <div class="filter-panel" style="background: var(--bg-glass-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 2rem;">
+    <form action="{{ url_for('view_places') }}" method="GET" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+      
+      <!-- Search Input -->
+      <div style="flex: 2; min-width: 240px;">
+        <label class="form-label" style="font-size: 0.82rem; margin-bottom: 0.4rem; color: var(--text-muted);">Search Keyword</label>
+        <div style="position: relative;">
+          <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search places, cities, monuments..." style="padding-left: 2.4rem;">
+          <i class="fas fa-magnifying-glass" style="position: absolute; left: 0.9rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+        </div>
       </div>
-      <div style="flex: 1; min-width: 180px;">
+
+      <!-- Category Filter -->
+      <div style="flex: 1; min-width: 170px;">
+        <label class="form-label" style="font-size: 0.82rem; margin-bottom: 0.4rem; color: var(--text-muted);">Category</label>
         <select name="category" class="form-control" style="cursor: pointer;">
           <option value="">All Categories</option>
           {% for cat in categories %}
@@ -27,13 +36,63 @@
           {% endfor %}
         </select>
       </div>
-      <button type="submit" class="btn btn-primary">
-        <i class="fas fa-filter"></i> Apply Filter
-      </button>
-      {% if search_query or selected_category %}
-        <a href="{{ url_for('view_places') }}" class="btn btn-outline">Reset</a>
-      {% endif %}
+
+      <!-- Sort By -->
+      <div style="flex: 1; min-width: 170px;">
+        <label class="form-label" style="font-size: 0.82rem; margin-bottom: 0.4rem; color: var(--text-muted);">Sort By</label>
+        <select name="sort_by" class="form-control" style="cursor: pointer;">
+          <option value="name_asc" {% if sort_by == 'name_asc' %}selected{% endif %}>Name (A - Z)</option>
+          <option value="name_desc" {% if sort_by == 'name_desc' %}selected{% endif %}>Name (Z - A)</option>
+          <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest Added</option>
+          <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Oldest First</option>
+        </select>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 0.5rem;">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-filter"></i> Apply
+        </button>
+        {% if search_query or selected_category or (sort_by and sort_by != 'name_asc') %}
+          <a href="{{ url_for('view_places') }}" class="btn btn-outline" title="Clear all filters">
+            <i class="fas fa-rotate-left"></i> Reset
+          </a>
+        {% endif %}
+      </div>
     </form>
+
+    <!-- Geolocation Trigger Banner -->
+    <div style="margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border-glass); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+      <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--text-muted); font-size: 0.9rem;">
+        <i class="fas fa-location-crosshairs" style="color: var(--primary); font-size: 1.2rem;"></i>
+        <span>Find tourist attractions closest to your current physical location:</span>
+      </div>
+      <button type="button" id="btn-geolocate" class="btn btn-outline btn-sm" onclick="locateNearbyPlaces()">
+        <i class="fas fa-location-arrow"></i> Find Near Me
+      </button>
+    </div>
+  </div>
+
+  <!-- Dynamic Geolocation Nearby Container (Filled by JavaScript when location is shared) -->
+  <div id="nearby-container" style="display: none; margin-bottom: 3rem;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
+      <h2 class="title-serif" style="font-size: 1.5rem; color: var(--accent);">
+        <i class="fas fa-map-pin"></i> Destinations Near You
+      </h2>
+      <button onclick="document.getElementById('nearby-container').style.display='none'" class="btn btn-outline btn-sm">
+        Close Nearby
+      </button>
+    </div>
+    <div id="nearby-grid" class="places-grid"></div>
+  </div>
+
+  <!-- Results Summary Header -->
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem;">
+    <span style="font-size: 0.92rem; color: var(--text-muted);">
+      Showing <strong>{{ places|length }}</strong> of <strong>{{ total_places }}</strong> destinations
+      {% if search_query %} for <span style="color: var(--primary);">"{{ search_query }}"</span>{% endif %}
+      {% if selected_category %} in <span class="category-pill" style="position: static; font-size: 0.75rem;">{{ selected_category }}</span>{% endif %}
+    </span>
   </div>
 
   <!-- Places Grid -->
@@ -42,9 +101,9 @@
       {% for place in places %}
         <div class="place-card">
           <div class="card-img-wrapper">
-            <img src="{{ url_for('static', filename='images/' + place.image) }}" alt="{{ place.name }}" class="card-img" onerror="this.src='/static/images/default_place.jpg'">
+            <img src="{{ url_for('static', filename='images/' + place.image) }}" alt="{{ place.name }}" class="card-img" loading="lazy" onerror="this.src='/static/images/default_place.jpg'">
             <span class="category-pill">{{ place.category or 'Heritage' }}</span>
-            <button class="fav-btn {% if place.place_id in user_fav_ids %}active{% endif %}" onclick="toggleFavorite({{ place.place_id }}, this)" title="Add to Favorites">
+            <button class="fav-btn {% if place.place_id in user_fav_ids %}active{% endif %}" onclick="toggleFavorite({{ place.place_id }}, this)" aria-label="Save to Favorites" title="Save to Favorites">
               <i class="{% if place.place_id in user_fav_ids %}fas{% else %}far{% endif %} fa-heart"></i>
             </button>
           </div>
@@ -58,21 +117,65 @@
               <span class="info-item"><i class="far fa-clock" style="color: var(--primary);"></i> {{ place.timings }}</span>
               <span class="info-item" style="margin-left: auto;"><i class="fas fa-ticket" style="color: var(--accent);"></i> {{ place.entry_fee }}</span>
             </div>
-            <a href="{{ url_for('place_details', place_id=place.place_id) }}" class="btn btn-outline" style="width: 100%; margin-top: 0.5rem;">
+            <a href="{{ url_for('place_details', place_id=place.place_id) }}" class="btn btn-outline" style="width: 100%; margin-top: 0.75rem;">
               View Details <i class="fas fa-chevron-right"></i>
             </a>
           </div>
         </div>
       {% endfor %}
     </div>
+
+    <!-- Pagination Controls -->
+    {% if total_pages > 1 %}
+      <div class="pagination-container" style="display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 3.5rem; flex-wrap: wrap;">
+        
+        <!-- Previous Page Button -->
+        {% if has_prev %}
+          <a href="{{ url_for('view_places', page=prev_num, q=search_query, category=selected_category, sort_by=sort_by) }}" class="pagination-btn">
+            <i class="fas fa-chevron-left"></i> Previous
+          </a>
+        {% else %}
+          <span class="pagination-btn disabled">
+            <i class="fas fa-chevron-left"></i> Previous
+          </span>
+        {% endif %}
+
+        <!-- Page Numbers -->
+        {% for p in range(1, total_pages + 1) %}
+          {% if p == page %}
+            <span class="pagination-number active">{{ p }}</span>
+          {% else %}
+            <a href="{{ url_for('view_places', page=p, q=search_query, category=selected_category, sort_by=sort_by) }}" class="pagination-number">
+              {{ p }}
+            </a>
+          {% endif %}
+        {% endfor %}
+
+        <!-- Next Page Button -->
+        {% if has_next %}
+          <a href="{{ url_for('view_places', page=next_num, q=search_query, category=selected_category, sort_by=sort_by) }}" class="pagination-btn">
+            Next <i class="fas fa-chevron-right"></i>
+          </a>
+        {% else %}
+          <span class="pagination-btn disabled">
+            Next <i class="fas fa-chevron-right"></i>
+          </span>
+        {% endif %}
+
+      </div>
+    {% endif %}
+
   {% else %}
-    <div style="text-align: center; padding: 4rem 1rem; background: var(--bg-glass-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg);">
-      <i class="fas fa-compass-slash" style="font-size: 3rem; color: var(--text-subtle); margin-bottom: 1rem;"></i>
-      <h3 style="font-size: 1.4rem; margin-bottom: 0.5rem;">No Tourist Places Found</h3>
-      <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
-        We couldn't find any places matching your search query "{{ search_query }}".
+    <!-- Empty State -->
+    <div style="text-align: center; padding: 4.5rem 1.5rem; background: var(--bg-glass-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); max-width: 600px; margin: 0 auto;">
+      <i class="fas fa-compass-slash" style="font-size: 3.5rem; color: var(--text-subtle); margin-bottom: 1.25rem;"></i>
+      <h3 class="title-serif" style="font-size: 1.6rem; margin-bottom: 0.5rem; color: #fff;">No Tourist Places Found</h3>
+      <p style="color: var(--text-muted); margin-bottom: 2rem; line-height: 1.6;">
+        We couldn't find any destinations matching your current filters. Try relaxing your search terms or resetting the filters.
       </p>
-      <a href="{{ url_for('view_places') }}" class="btn btn-primary">Browse All Destinations</a>
+      <a href="{{ url_for('view_places') }}" class="btn btn-primary">
+        <i class="fas fa-rotate-left"></i> Clear All Filters
+      </a>
     </div>
   {% endif %}
 </div>

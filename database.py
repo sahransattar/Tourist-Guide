@@ -272,9 +272,20 @@ class DatabaseManager:
                     entry_fee VARCHAR(100) DEFAULT 'Free / Nominal',
                     image VARCHAR(255) DEFAULT 'default_place.jpg',
                     category VARCHAR(50) DEFAULT 'Heritage',
+                    latitude DECIMAL(10, 7) NULL,
+                    longitude DECIMAL(10, 7) NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             ''')
+
+            # Migration: Ensure latitude and longitude columns exist in MySQL
+            try:
+                cursor.execute("SHOW COLUMNS FROM tourist_places LIKE 'latitude'")
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE tourist_places ADD COLUMN latitude DECIMAL(10, 7) NULL")
+                    cursor.execute("ALTER TABLE tourist_places ADD COLUMN longitude DECIMAL(10, 7) NULL")
+            except Exception as e:
+                logger.warning("Error checking/migrating MySQL coordinates columns: %s", e)
 
             # Favorites table
             cursor.execute('''
@@ -295,6 +306,8 @@ class DatabaseManager:
             count = res['cnt'] if isinstance(res, dict) else res[0]
             if count == 0:
                 self._seed_places(cursor, is_sqlite=False)
+            else:
+                self._sync_seed_coordinates(cursor, is_sqlite=False)
 
             # Seed demo users if empty (with secure Werkzeug password hashes)
             cursor.execute("SELECT COUNT(*) AS cnt FROM users")
@@ -339,9 +352,19 @@ class DatabaseManager:
                     entry_fee TEXT DEFAULT 'Free / Nominal',
                     image TEXT DEFAULT 'default_place.jpg',
                     category TEXT DEFAULT 'Heritage',
+                    latitude REAL NULL,
+                    longitude REAL NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+
+            # Migration: Ensure latitude and longitude columns exist in SQLite
+            cursor.execute("PRAGMA table_info(tourist_places)")
+            columns = [col[1] for col in cursor.fetchall()]
+            if 'latitude' not in columns:
+                cursor.execute("ALTER TABLE tourist_places ADD COLUMN latitude REAL NULL")
+            if 'longitude' not in columns:
+                cursor.execute("ALTER TABLE tourist_places ADD COLUMN longitude REAL NULL")
 
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS favorites (
@@ -358,6 +381,8 @@ class DatabaseManager:
             cursor.execute("SELECT COUNT(*) FROM tourist_places")
             if cursor.fetchone()[0] == 0:
                 self._seed_places(cursor, is_sqlite=True)
+            else:
+                self._sync_seed_coordinates(cursor, is_sqlite=True)
 
             cursor.execute("SELECT COUNT(*) FROM users")
             if cursor.fetchone()[0] == 0:
@@ -385,7 +410,9 @@ class DatabaseManager:
                 '6:00 AM - 6:30 PM (Closed on Fridays)',
                 '₹50 for Indians, ₹1100 for Foreigners',
                 'taj_mahal.jpg',
-                'Heritage'
+                'Heritage',
+                27.1751,
+                78.0421
             ),
             (
                 'Jaipur City Palace',
@@ -394,7 +421,9 @@ class DatabaseManager:
                 '9:30 AM - 5:00 PM',
                 '₹200 for Indians, ₹700 for Foreigners',
                 'jaipur_palace.jpg',
-                'Palace'
+                'Palace',
+                26.9258,
+                75.8237
             ),
             (
                 'Goa Beaches & Fort Aguada',
@@ -403,7 +432,9 @@ class DatabaseManager:
                 '24 Hours Open (Fort: 9:30 AM - 6:00 PM)',
                 'Free Entry (Fort: ₹25)',
                 'goa_beach.jpg',
-                'Beach'
+                'Beach',
+                15.4920,
+                73.7737
             ),
             (
                 'Kerala Backwaters (Alleppey)',
@@ -412,7 +443,9 @@ class DatabaseManager:
                 'Best visited 6:00 AM - 7:00 PM',
                 'Houseboat rentals from ₹3,000/day',
                 'kerala_backwaters.jpg',
-                'Nature'
+                'Nature',
+                9.4981,
+                76.3388
             ),
             (
                 'Varanasi Ghats & Kashi Vishwanath',
@@ -421,7 +454,9 @@ class DatabaseManager:
                 '24 Hours Open (Ganga Aarti: 6:45 PM)',
                 'Free Entry',
                 'varanasi_ghats.jpg',
-                'Spiritual'
+                'Spiritual',
+                25.3109,
+                83.0104
             ),
             (
                 'Pangong Lake & Nubra Valley',
@@ -430,17 +465,37 @@ class DatabaseManager:
                 'May to October (Daytime)',
                 'Inner Line Permit (₹400 approx)',
                 'pangong_lake.jpg',
-                'Adventure'
+                'Adventure',
+                33.7595,
+                78.6674
             )
         ]
         sql = '''
-            INSERT INTO tourist_places (name, location, description, timings, entry_fee, image, category)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO tourist_places (name, location, description, timings, entry_fee, image, category, latitude, longitude)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''' if is_sqlite else '''
-            INSERT INTO tourist_places (name, location, description, timings, entry_fee, image, category)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO tourist_places (name, location, description, timings, entry_fee, image, category, latitude, longitude)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         '''
         cursor.executemany(sql, sample_places)
+
+    def _sync_seed_coordinates(self, cursor, is_sqlite=False):
+        """Backfills latitude and longitude coordinates for seed destinations if currently NULL."""
+        coords_map = {
+            'Taj Mahal': (27.1751, 78.0421),
+            'Jaipur City Palace': (26.9258, 75.8237),
+            'Goa Beaches & Fort Aguada': (15.4920, 73.7737),
+            'Kerala Backwaters (Alleppey)': (9.4981, 76.3388),
+            'Varanasi Ghats & Kashi Vishwanath': (25.3109, 83.0104),
+            'Pangong Lake & Nubra Valley': (33.7595, 78.6674),
+        }
+        update_sql = '''
+            UPDATE tourist_places SET latitude = ?, longitude = ? WHERE name = ? AND latitude IS NULL
+        ''' if is_sqlite else '''
+            UPDATE tourist_places SET latitude = %s, longitude = %s WHERE name = %s AND latitude IS NULL
+        '''
+        for name, (lat, lng) in coords_map.items():
+            cursor.execute(update_sql, (lat, lng, name))
 
 
 # Singleton database manager instance

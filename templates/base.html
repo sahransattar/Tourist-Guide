@@ -52,7 +52,7 @@
         </li>
         {% endif %}
         <li>
-          <a href="{{ url_for('admin_dashboard') if session.get('is_admin') else url_for('admin_login') }}" class="nav-link {% if 'admin' in request.endpoint %}active{% endif %}">
+          <a href="{{ url_for('admin_dashboard') if session.get('is_admin') else url_for('admin_login') }}" class="nav-link {% if request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
             <i class="fas fa-user-shield"></i> Admin
           </a>
         </li>
