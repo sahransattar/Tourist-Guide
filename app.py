@@ -6,71 +6,209 @@ Suitable for BCA Final Year Project
 """
 
 import os
+import re
+import time
+import secrets
+import logging
+from collections import defaultdict
+from functools import wraps
+from urllib.parse import urlparse, urljoin
+
 from flask import (
     Flask, render_template, request, redirect,
     url_for, session, flash, jsonify
 )
-from database import get_db, is_mysql
+from werkzeug.security import generate_password_hash, check_password_hash
+
+from database import (
+    get_db, is_mysql, query_db, check_db_status,
+    IS_PRODUCTION, DatabaseError, DatabaseConfigurationError, DatabaseConnectionError
+)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'tourist_pwa_bca_secret_key_2026')
 
-# Helper function to convert DB rows to clean python dicts
-def dict_from_row(row):
-    if row is None:
-        return None
-    if isinstance(row, dict):
-        return row
-    return dict(row)
+# Configure Secret Key
+configured_secret = os.environ.get('SECRET_KEY')
+if configured_secret:
+    app.secret_key = configured_secret
+else:
+    if IS_PRODUCTION:
+        # In production, warn if static secret is not configured
+        app.secret_key = secrets.token_hex(32)
+        logger.warning(
+            "[SECURITY WARNING] SECRET_KEY environment variable is not configured! "
+            "A temporary random key was generated for this process. "
+            "Please set a persistent SECRET_KEY in your Vercel Project Environment Variables."
+        )
+    else:
+        app.secret_key = 'tourist_pwa_bca_secret_key_2026_dev'
 
-def dicts_from_rows(rows):
-    return [dict_from_row(r) for r in rows]
+# Session Cookie Security Configuration
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+if IS_PRODUCTION:
+    app.config['SESSION_COOKIE_SECURE'] = True
 
-# Helper query wrapper to work seamlessly across MySQL and SQLite
-def query_db(query, args=(), fetchone=False, fetchall=False, commit=False):
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    # Adjust placeholders for SQLite if needed (SQLite uses ? instead of %s)
-    if not is_mysql():
-        query = query.replace('%s', '?')
-        
-    cursor.execute(query, args)
-    
-    if commit:
-        conn.commit()
-        last_id = cursor.lastrowid if hasattr(cursor, 'lastrowid') else None
-        conn.close()
-        return last_id
 
-    result = None
-    if fetchone:
-        row = cursor.fetchone()
-        result = dict_from_row(row)
-    elif fetchall:
-        rows = cursor.fetchall()
-        result = dicts_from_rows(rows)
+# In-memory Rate Limiting for Authentication (Brute-force protection)
+login_attempts = defaultdict(list)
 
-    conn.close()
-    return result
+
+def is_rate_limited(ip_address, max_attempts=5, window_seconds=300):
+    """Checks if an IP address has exceeded the allowed login failure threshold."""
+    now = time.time()
+    attempts = [t for t in login_attempts[ip_address] if now - t < window_seconds]
+    login_attempts[ip_address] = attempts
+    return len(attempts) >= max_attempts
+
+
+def record_failed_attempt(ip_address):
+    """Records a failed authentication attempt timestamp."""
+    login_attempts[ip_address].append(time.time())
+
+
+def clear_failed_attempts(ip_address):
+    """Clears failed attempts on successful login."""
+    login_attempts.pop(ip_address, None)
+
+
+# Safe Redirect Validator (Prevents Open Redirect Vulnerabilities)
+def is_safe_url(target):
+    if not target:
+        return False
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
+
+
+# CSRF Protection Helpers
+def get_csrf_token():
+    """Generates or retrieves a secure random CSRF token tied to the current session."""
+    if '_csrf_token' not in session:
+        session['_csrf_token'] = secrets.token_hex(32)
+    return session['_csrf_token']
+
+
+@app.context_processor
+def inject_csrf_token():
+    """Injects csrf_token helper into all Jinja2 templates."""
+    return dict(csrf_token=get_csrf_token)
+
+
+@app.before_request
+def validate_csrf():
+    """
+    Validates CSRF token on all state-changing HTTP methods (POST, PUT, DELETE, PATCH).
+    Accepts token via 'csrf_token' form field or 'X-CSRFToken' HTTP header.
+    """
+    if request.method in ('POST', 'PUT', 'DELETE', 'PATCH'):
+        # Allow health checks and read-only APIs without CSRF
+        if request.endpoint in ('static',):
+            return None
+
+        submitted_token = request.headers.get('X-CSRFToken') or request.form.get('csrf_token')
+        expected_token = session.get('_csrf_token')
+
+        if not expected_token or not submitted_token or not secrets.compare_digest(str(submitted_token), str(expected_token)):
+            logger.warning("CSRF validation failed on %s from %s", request.path, request.remote_addr)
+            if request.path.startswith('/api/'):
+                return jsonify({'success': False, 'message': 'CSRF token missing or invalid.'}), 403
+            flash("Your session or security token expired. Please try submitting again.", "danger")
+            return redirect(request.referrer or url_for('home'))
+
+
+# Admin Authentication Helpers
+DEV_DEFAULT_ADMIN_HASH = generate_password_hash('admin123')
+
+
+def verify_admin_credentials(username, password):
+    """
+    Verifies admin credentials securely against environment variables.
+    Never relies on hardcoded passwords in production.
+    """
+    if not username or not password:
+        return False
+
+    expected_username = os.environ.get('ADMIN_USERNAME', 'admin').strip()
+    if not secrets.compare_digest(username.strip(), expected_username):
+        return False
+
+    # Check for pre-hashed admin password in environment
+    admin_password_hash = os.environ.get('ADMIN_PASSWORD_HASH')
+    if admin_password_hash:
+        try:
+            return check_password_hash(admin_password_hash.strip(), password)
+        except Exception as e:
+            logger.error("Error verifying ADMIN_PASSWORD_HASH: %s", e)
+            return False
+
+    # Check for plaintext admin password in environment
+    admin_password_plain = os.environ.get('ADMIN_PASSWORD')
+    if admin_password_plain:
+        return secrets.compare_digest(password, admin_password_plain)
+
+    if not IS_PRODUCTION:
+        # Development fallback only
+        logger.warning(
+            "[DEV NOTICE] Using default development admin password. "
+            "Please set ADMIN_PASSWORD_HASH in environment for production."
+        )
+        return check_password_hash(DEV_DEFAULT_ADMIN_HASH, password)
+
+    # In production, fail safely if credentials are not configured
+    logger.error("Admin login attempted in production but ADMIN_PASSWORD_HASH is not configured.")
+    return False
+
+
+def admin_required(f):
+    """Decorator ensuring that only authenticated administrators can access protected endpoints."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('is_admin') or not session.get('admin_user'):
+            flash("Admin authentication required. Please log in.", "danger")
+            return redirect(url_for('admin_login', next=request.path))
+        return f(*args, **kwargs)
+    return decorated_function
+
 
 # ---------------------------------------------------------
-# User Routes
+# Public & User Routes
 # ---------------------------------------------------------
 
 @app.route('/')
 def home():
     """Home Page route showing hero, search bar, and featured tourist places."""
-    places = query_db("SELECT * FROM tourist_places ORDER BY place_id DESC LIMIT 6", fetchall=True) or []
-    
-    # Get total counts for home dashboard stats
-    total_places = query_db("SELECT COUNT(*) as cnt FROM tourist_places", fetchone=True)['cnt']
-    total_users = query_db("SELECT COUNT(*) as cnt FROM users", fetchone=True)['cnt']
-    
+    try:
+        places = query_db("SELECT * FROM tourist_places ORDER BY place_id DESC LIMIT 6", fetchall=True) or []
+        places_count_row = query_db("SELECT COUNT(*) as cnt FROM tourist_places", fetchone=True)
+        users_count_row = query_db("SELECT COUNT(*) as cnt FROM users", fetchone=True)
+        total_places = places_count_row['cnt'] if places_count_row else 0
+        total_users = users_count_row['cnt'] if users_count_row else 0
+    except DatabaseError as de:
+        logger.error("Database error on home page: %s", de)
+        places = []
+        total_places = 0
+        total_users = 0
+    except Exception as e:
+        logger.error("Unexpected error on home page: %s", e)
+        places = []
+        total_places = 0
+        total_users = 0
+
     user_fav_ids = []
     if 'user_id' in session:
-        favs = query_db("SELECT place_id FROM favorites WHERE user_id = %s", (session['user_id'],), fetchall=True)
-        user_fav_ids = [f['place_id'] for f in favs] if favs else []
+        try:
+            favs = query_db("SELECT place_id FROM favorites WHERE user_id = %s", (session['user_id'],), fetchall=True)
+            user_fav_ids = [f['place_id'] for f in favs] if favs else []
+        except Exception as e:
+            logger.error("Error retrieving user favorites on home: %s", e)
 
     return render_template(
         'index.html',
@@ -80,12 +218,13 @@ def home():
         user_fav_ids=user_fav_ids
     )
 
+
 @app.route('/places')
 def view_places():
     """View & Search Tourist Places route with category/keyword filters."""
     search_query = request.args.get('q', '').strip()
     category_filter = request.args.get('category', '').strip()
-    
+
     sql = "SELECT * FROM tourist_places WHERE 1=1"
     params = []
 
@@ -99,15 +238,23 @@ def view_places():
         params.append(category_filter)
 
     sql += " ORDER BY name ASC"
-    places = query_db(sql, tuple(params), fetchall=True) or []
 
-    categories = query_db("SELECT DISTINCT category FROM tourist_places WHERE category IS NOT NULL", fetchall=True)
-    cat_list = [c['category'] for c in categories] if categories else []
+    try:
+        places = query_db(sql, tuple(params), fetchall=True) or []
+        categories = query_db("SELECT DISTINCT category FROM tourist_places WHERE category IS NOT NULL", fetchall=True)
+        cat_list = [c['category'] for c in categories] if categories else []
+    except Exception as e:
+        logger.error("Error retrieving places list: %s", e)
+        places = []
+        cat_list = []
 
     user_fav_ids = []
     if 'user_id' in session:
-        favs = query_db("SELECT place_id FROM favorites WHERE user_id = %s", (session['user_id'],), fetchall=True)
-        user_fav_ids = [f['place_id'] for f in favs] if favs else []
+        try:
+            favs = query_db("SELECT place_id FROM favorites WHERE user_id = %s", (session['user_id'],), fetchall=True)
+            user_fav_ids = [f['place_id'] for f in favs] if favs else []
+        except Exception:
+            pass
 
     return render_template(
         'places.html',
@@ -118,104 +265,218 @@ def view_places():
         user_fav_ids=user_fav_ids
     )
 
+
 @app.route('/place/<int:place_id>')
 def place_details(place_id):
     """View details of a specific tourist place."""
-    place = query_db("SELECT * FROM tourist_places WHERE place_id = %s", (place_id,), fetchone=True)
+    try:
+        place = query_db("SELECT * FROM tourist_places WHERE place_id = %s", (place_id,), fetchone=True)
+    except Exception as e:
+        logger.error("Error fetching place_id=%s: %s", place_id, e)
+        place = None
+
     if not place:
-        flash("Tourist place not found.", "error")
+        flash("Tourist destination not found.", "warning")
         return redirect(url_for('view_places'))
 
     is_favorite = False
     if 'user_id' in session:
-        fav = query_db(
-            "SELECT * FROM favorites WHERE user_id = %s AND place_id = %s",
-            (session['user_id'], place_id),
-            fetchone=True
-        )
-        if fav:
-            is_favorite = True
+        try:
+            fav = query_db(
+                "SELECT * FROM favorites WHERE user_id = %s AND place_id = %s",
+                (session['user_id'], place_id),
+                fetchone=True
+            )
+            if fav:
+                is_favorite = True
+        except Exception:
+            pass
 
-    # Related places in same location or category
-    related_places = query_db(
-        "SELECT * FROM tourist_places WHERE place_id != %s AND (category = %s OR location LIKE %s) LIMIT 3",
-        (place_id, place.get('category', ''), f"%{place['location'].split(',')[0]}%"),
-        fetchall=True
-    ) or []
+    related_places = []
+    try:
+        related_places = query_db(
+            "SELECT * FROM tourist_places WHERE place_id != %s AND (category = %s OR location LIKE %s) LIMIT 3",
+            (place_id, place.get('category', ''), f"%{place['location'].split(',')[0]}%"),
+            fetchall=True
+        ) or []
+    except Exception:
+        pass
 
     return render_template('details.html', place=place, is_favorite=is_favorite, related_places=related_places)
 
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """User Registration route."""
+    """
+    User Registration route.
+    Validates input, securely hashes passwords, and handles database errors gracefully.
+    """
     if 'user_id' in session:
         return redirect(url_for('home'))
 
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '').strip()
+        password = request.form.get('password', '')
 
+        # 1. Validation: Required fields
         if not name or not email or not password:
             flash("All fields are required.", "danger")
             return render_template('register.html')
 
-        # Check existing user
-        existing_user = query_db("SELECT * FROM users WHERE email = %s", (email,), fetchone=True)
-        if existing_user:
-            flash("An account with this email already exists. Please login.", "warning")
+        if len(name) < 2 or len(name) > 100:
+            flash("Full Name must be between 2 and 100 characters.", "danger")
             return render_template('register.html')
 
+        # 2. Validation: Email format
+        email_regex = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
+        if not email_regex.match(email) or len(email) > 100:
+            flash("Please enter a valid email address.", "danger")
+            return render_template('register.html')
+
+        # 3. Validation: Password strength
+        if len(password) < 6:
+            flash("Password must be at least 6 characters long.", "danger")
+            return render_template('register.html')
+
+        # 4. Check for existing user account
         try:
-            new_id = query_db(
+            existing_user = query_db("SELECT user_id FROM users WHERE email = %s", (email,), fetchone=True)
+            if existing_user:
+                flash("An account with this email address already exists. Please login.", "warning")
+                return render_template('register.html')
+        except DatabaseConfigurationError as dce:
+            logger.error("Registration aborted due to database configuration: %s", dce)
+            flash("Registration is currently unavailable. Database configuration is required.", "danger")
+            return render_template('register.html')
+        except Exception as e:
+            logger.error("Error checking existing user for email=%s: %s", email, e, exc_info=True)
+            flash("Registration is temporarily unavailable. Please try again later.", "danger")
+            return render_template('register.html')
+
+        # 5. Secure password hashing
+        password_hash = generate_password_hash(password)
+
+        # 6. Database insertion
+        try:
+            query_db(
                 "INSERT INTO users (name, email, password) VALUES (%s, %s, %s)",
-                (name, email, password),
+                (name, email, password_hash),
                 commit=True
             )
+            logger.info("New user registered successfully: email=%s", email)
             flash("Registration successful! Please login with your credentials.", "success")
             return redirect(url_for('login'))
         except Exception as e:
-            flash(f"Error registering user: {str(e)}", "danger")
+            # Check for unique constraint violation
+            error_str = str(e).lower()
+            if 'unique' in error_str or 'duplicate' in error_str:
+                logger.warning("Duplicate registration attempt for email=%s", email)
+                flash("An account with this email address already exists. Please login.", "warning")
+                return render_template('register.html')
+
+            logger.error("Database insert failed during user registration for email=%s: %s", email, e, exc_info=True)
+            flash("Registration is temporarily unavailable. Please try again later.", "danger")
 
     return render_template('register.html')
 
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """User Login route."""
+    """
+    User Login route.
+    Verifies secure hashes and seamlessly upgrades legacy plaintext passwords.
+    """
     if 'user_id' in session:
         return redirect(url_for('home'))
 
     if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '').strip()
+        client_ip = request.remote_addr or 'unknown'
 
-        user = query_db("SELECT * FROM users WHERE email = %s AND password = %s", (email, password), fetchone=True)
+        if is_rate_limited(client_ip):
+            flash("Too many failed login attempts. Please wait 5 minutes before trying again.", "danger")
+            return render_template('login.html')
+
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+
+        if not email or not password:
+            flash("Email and password are required.", "danger")
+            return render_template('login.html')
+
+        try:
+            user = query_db("SELECT * FROM users WHERE email = %s", (email,), fetchone=True)
+        except Exception as e:
+            logger.error("Database error during login query for email=%s: %s", email, e, exc_info=True)
+            flash("Authentication service is temporarily unavailable. Please try again later.", "danger")
+            return render_template('login.html')
+
         if user:
-            session['user_id'] = user['user_id']
-            session['user_name'] = user['name']
-            session['user_email'] = user['email']
-            flash(f"Welcome back, {user['name']}!", "success")
-            return redirect(url_for('home'))
-        else:
-            flash("Invalid email address or password.", "danger")
+            stored_password = user.get('password', '')
+            is_valid = False
+            needs_rehash = False
+
+            # Verify Werkzeug password hash
+            try:
+                if check_password_hash(stored_password, password):
+                    is_valid = True
+            except Exception:
+                pass
+
+            # Safe backward-compatibility: detect legacy plaintext password
+            if not is_valid and stored_password == password:
+                is_valid = True
+                needs_rehash = True
+
+            if is_valid:
+                clear_failed_attempts(client_ip)
+
+                # Transparently upgrade legacy plaintext password to secure Werkzeug hash
+                if needs_rehash:
+                    try:
+                        new_hash = generate_password_hash(password)
+                        query_db(
+                            "UPDATE users SET password = %s WHERE user_id = %s",
+                            (new_hash, user['user_id']),
+                            commit=True
+                        )
+                        logger.info("Migrated legacy plaintext password to secure hash for user_id=%s", user['user_id'])
+                    except Exception as rehash_err:
+                        logger.warning("Failed to auto-upgrade password hash for user_id=%s: %s", user['user_id'], rehash_err)
+
+                # Reset session to prevent session fixation attacks
+                session.clear()
+                session['user_id'] = user['user_id']
+                session['user_name'] = user['name']
+                session['user_email'] = user['email']
+
+                flash(f"Welcome back, {user['name']}!", "success")
+                next_url = request.args.get('next')
+                if is_safe_url(next_url):
+                    return redirect(next_url)
+                return redirect(url_for('home'))
+
+        record_failed_attempt(client_ip)
+        logger.warning("Failed login attempt for email=%s from IP=%s", email, client_ip)
+        flash("Invalid email address or password.", "danger")
 
     return render_template('login.html')
 
+
 @app.route('/logout')
 def logout():
-    """Clear user session and log out."""
-    session.pop('user_id', None)
-    session.pop('user_name', None)
-    session.pop('user_email', None)
+    """Clear session data and log out regular user."""
+    session.clear()
     flash("You have been logged out successfully.", "info")
     return redirect(url_for('home'))
+
 
 @app.route('/favorites')
 def favorites():
     """View list of user's favorite places."""
     if 'user_id' not in session:
         flash("Please log in to view your favorite tourist places.", "warning")
-        return redirect(url_for('login'))
+        return redirect(url_for('login', next=request.path))
 
     user_id = session['user_id']
     query = """
@@ -225,49 +486,87 @@ def favorites():
         WHERE f.user_id = %s
         ORDER BY f.favorite_id DESC
     """
-    fav_places = query_db(query, (user_id,), fetchall=True) or []
+    try:
+        fav_places = query_db(query, (user_id,), fetchall=True) or []
+    except Exception as e:
+        logger.error("Error retrieving favorites for user_id=%s: %s", user_id, e)
+        fav_places = []
 
     return render_template('favorites.html', places=fav_places)
 
+
 @app.route('/api/favorites/toggle', methods=['POST'])
 def toggle_favorite():
-    """AJAX API endpoint for adding or removing a favorite place."""
+    """
+    AJAX API endpoint for adding or removing a favorite place.
+    Enforces user authorization strictly from verified session.
+    """
     if 'user_id' not in session:
         return jsonify({'success': False, 'message': 'Authentication required. Please login.'}), 401
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     place_id = data.get('place_id')
 
     if not place_id:
         return jsonify({'success': False, 'message': 'Invalid place ID.'}), 400
 
-    user_id = session['user_id']
-    existing = query_db(
-        "SELECT * FROM favorites WHERE user_id = %s AND place_id = %s",
-        (user_id, place_id),
-        fetchone=True
-    )
+    try:
+        place_id = int(place_id)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'message': 'Place ID must be an integer.'}), 400
 
-    if existing:
-        query_db("DELETE FROM favorites WHERE user_id = %s AND place_id = %s", (user_id, place_id), commit=True)
-        return jsonify({
-            'success': True,
-            'is_favorite': False,
-            'message': 'Removed from your favorites.'
-        })
-    else:
-        query_db("INSERT INTO favorites (user_id, place_id) VALUES (%s, %s)", (user_id, place_id), commit=True)
-        return jsonify({
-            'success': True,
-            'is_favorite': True,
-            'message': 'Added to your favorites!'
-        })
+    user_id = session['user_id']
+
+    try:
+        existing = query_db(
+            "SELECT favorite_id FROM favorites WHERE user_id = %s AND place_id = %s",
+            (user_id, place_id),
+            fetchone=True
+        )
+
+        if existing:
+            query_db("DELETE FROM favorites WHERE user_id = %s AND place_id = %s", (user_id, place_id), commit=True)
+            return jsonify({
+                'success': True,
+                'is_favorite': False,
+                'message': 'Removed from your favorites.'
+            })
+        else:
+            query_db("INSERT INTO favorites (user_id, place_id) VALUES (%s, %s)", (user_id, place_id), commit=True)
+            return jsonify({
+                'success': True,
+                'is_favorite': True,
+                'message': 'Added to your favorites!'
+            })
+    except Exception as e:
+        logger.error("Error toggling favorite for user_id=%s, place_id=%s: %s", user_id, place_id, e)
+        return jsonify({'success': False, 'message': 'Database error occurred. Please try again.'}), 500
+
 
 @app.route('/api/places')
 def api_places():
-    """API endpoint returning all places in JSON format for SW offline caching."""
-    places = query_db("SELECT * FROM tourist_places ORDER BY name ASC", fetchall=True) or []
-    return jsonify({'success': True, 'places': places})
+    """Public API endpoint returning all places in JSON format for offline caching."""
+    try:
+        places = query_db("SELECT * FROM tourist_places ORDER BY name ASC", fetchall=True) or []
+        return jsonify({'success': True, 'places': places})
+    except Exception as e:
+        logger.error("Error in api_places: %s", e)
+        return jsonify({'success': False, 'places': [], 'error': 'Could not fetch places.'}), 500
+
+
+@app.route('/api/health')
+def api_health():
+    """
+    Safe health check endpoint for monitoring deployment status and database connectivity.
+    Never exposes passwords, tokens, or sensitive credentials.
+    """
+    db_status = check_db_status()
+    is_healthy = db_status['connected']
+    return jsonify({
+        'status': 'healthy' if is_healthy else 'degraded',
+        'database': db_status
+    }), (200 if is_healthy else 503)
+
 
 # ---------------------------------------------------------
 # Admin Module Routes
@@ -275,35 +574,58 @@ def api_places():
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
-    """Admin login authentication route."""
-    if 'is_admin' in session and session['is_admin']:
+    """Admin login authentication route with brute-force rate limiting."""
+    if session.get('is_admin'):
         return redirect(url_for('admin_dashboard'))
 
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
+        client_ip = request.remote_addr or 'unknown'
 
-        # Simple & secure admin authentication (admin / admin123)
-        if username == 'admin' and password == 'admin123':
+        if is_rate_limited(client_ip):
+            flash("Too many failed login attempts. Please wait 5 minutes before trying again.", "danger")
+            return render_template('admin_login.html')
+
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+
+        if not username or not password:
+            flash("Username and password are required.", "danger")
+            return render_template('admin_login.html')
+
+        if verify_admin_credentials(username, password):
+            clear_failed_attempts(client_ip)
+            session.clear()
             session['is_admin'] = True
-            session['admin_user'] = 'Administrator'
+            session['admin_user'] = username
+            logger.info("Admin successfully authenticated: username=%s from IP=%s", username, client_ip)
             flash("Welcome Admin! Access granted.", "success")
+            next_url = request.args.get('next')
+            if is_safe_url(next_url):
+                return redirect(next_url)
             return redirect(url_for('admin_dashboard'))
         else:
+            record_failed_attempt(client_ip)
+            logger.warning("Failed admin authentication for username=%s from IP=%s", username, client_ip)
             flash("Invalid admin credentials. Access denied.", "danger")
 
     return render_template('admin_login.html')
 
+
 @app.route('/admin')
+@admin_required
 def admin_dashboard():
     """Admin Dashboard displaying system statistics and CRUD interface."""
-    if not session.get('is_admin'):
-        flash("Admin authentication required.", "danger")
-        return redirect(url_for('admin_login'))
-
-    places = query_db("SELECT * FROM tourist_places ORDER BY place_id DESC", fetchall=True) or []
-    users = query_db("SELECT * FROM users ORDER BY user_id DESC", fetchall=True) or []
-    total_favs = query_db("SELECT COUNT(*) as cnt FROM favorites", fetchone=True)['cnt']
+    try:
+        places = query_db("SELECT * FROM tourist_places ORDER BY place_id DESC", fetchall=True) or []
+        users = query_db("SELECT user_id, name, email, created_at FROM users ORDER BY user_id DESC", fetchall=True) or []
+        favs_row = query_db("SELECT COUNT(*) as cnt FROM favorites", fetchone=True)
+        total_favs = favs_row['cnt'] if favs_row else 0
+    except Exception as e:
+        logger.error("Error loading admin dashboard data: %s", e)
+        places = []
+        users = []
+        total_favs = 0
+        flash("Could not load dashboard data from database.", "warning")
 
     return render_template(
         'admin.html',
@@ -312,19 +634,18 @@ def admin_dashboard():
         total_favs=total_favs
     )
 
-@app.route('/admin/place/add', methods=['POST'])
-def admin_add_place():
-    """Add a new tourist place."""
-    if not session.get('is_admin'):
-        return redirect(url_for('admin_login'))
 
+@app.route('/admin/place/add', methods=['POST'])
+@admin_required
+def admin_add_place():
+    """Add a new tourist destination."""
     name = request.form.get('name', '').strip()
     location = request.form.get('location', '').strip()
     description = request.form.get('description', '').strip()
     timings = request.form.get('timings', '9:00 AM - 5:00 PM').strip()
     entry_fee = request.form.get('entry_fee', 'Free').strip()
     category = request.form.get('category', 'Heritage').strip()
-    image = request.form.get('image', 'default_place.jpg').strip()
+    image = request.form.get('image', 'default_place.jpg').strip() or 'default_place.jpg'
 
     if not name or not location or not description:
         flash("Name, Location, and Description are required.", "danger")
@@ -337,25 +658,30 @@ def admin_add_place():
             (name, location, description, timings, entry_fee, image, category),
             commit=True
         )
-        flash(f"Tourist Place '{name}' added successfully!", "success")
+        logger.info("Admin %s added place '%s'", session.get('admin_user'), name)
+        flash(f"Tourist destination '{name}' added successfully!", "success")
     except Exception as e:
-        flash(f"Error adding place: {str(e)}", "danger")
+        logger.error("Error adding place '%s': %s", name, e)
+        flash("Error adding tourist destination. Please check database logs.", "danger")
 
     return redirect(url_for('admin_dashboard'))
 
-@app.route('/admin/place/edit/<int:place_id>', methods=['POST'])
-def admin_edit_place(place_id):
-    """Edit an existing tourist place."""
-    if not session.get('is_admin'):
-        return redirect(url_for('admin_login'))
 
+@app.route('/admin/place/edit/<int:place_id>', methods=['POST'])
+@admin_required
+def admin_edit_place(place_id):
+    """Edit an existing tourist destination."""
     name = request.form.get('name', '').strip()
     location = request.form.get('location', '').strip()
     description = request.form.get('description', '').strip()
     timings = request.form.get('timings', '').strip()
     entry_fee = request.form.get('entry_fee', '').strip()
     category = request.form.get('category', '').strip()
-    image = request.form.get('image', '').strip()
+    image = request.form.get('image', '').strip() or 'default_place.jpg'
+
+    if not name or not location or not description:
+        flash("Name, Location, and Description are required.", "danger")
+        return redirect(url_for('admin_dashboard'))
 
     try:
         query_db(
@@ -366,33 +692,39 @@ def admin_edit_place(place_id):
             (name, location, description, timings, entry_fee, category, image, place_id),
             commit=True
         )
-        flash(f"Tourist Place '{name}' updated successfully!", "success")
+        logger.info("Admin %s updated place_id=%s ('%s')", session.get('admin_user'), place_id, name)
+        flash(f"Tourist destination '{name}' updated successfully!", "success")
     except Exception as e:
-        flash(f"Error updating place: {str(e)}", "danger")
+        logger.error("Error updating place_id=%s: %s", place_id, e)
+        flash("Error updating tourist destination.", "danger")
 
     return redirect(url_for('admin_dashboard'))
+
 
 @app.route('/admin/place/delete/<int:place_id>', methods=['POST'])
+@admin_required
 def admin_delete_place(place_id):
-    """Delete a tourist place."""
-    if not session.get('is_admin'):
-        return redirect(url_for('admin_login'))
-
+    """Delete a tourist destination."""
     try:
         query_db("DELETE FROM tourist_places WHERE place_id = %s", (place_id,), commit=True)
-        flash("Tourist place deleted successfully.", "success")
+        logger.info("Admin %s deleted place_id=%s", session.get('admin_user'), place_id)
+        flash("Tourist destination deleted successfully.", "success")
     except Exception as e:
-        flash(f"Error deleting place: {str(e)}", "danger")
+        logger.error("Error deleting place_id=%s: %s", place_id, e)
+        flash("Error deleting tourist destination.", "danger")
 
     return redirect(url_for('admin_dashboard'))
+
 
 @app.route('/admin/logout')
 def admin_logout():
     """Logout from Admin session."""
-    session.pop('is_admin', None)
-    session.pop('admin_user', None)
+    admin_user = session.get('admin_user', 'Admin')
+    session.clear()
+    logger.info("Admin %s logged out", admin_user)
     flash("Admin logged out successfully.", "info")
     return redirect(url_for('home'))
+
 
 # ---------------------------------------------------------
 # Application Entry Point

@@ -1,7 +1,7 @@
 -- =========================================================
 -- Tourist Guide PWA - MySQL Database Script
 -- Database: tourist_guide_db
--- Suitable for BCA Final Year Project
+-- Suitable for BCA Final Year Project & Cloud Deployment
 -- =========================================================
 
 -- Create Database if not exists
@@ -10,7 +10,7 @@ USE tourist_guide_db;
 
 -- ---------------------------------------------------------
 -- Table: Users
--- Stores registered user information
+-- Stores registered user information with secure password hashes
 -- ---------------------------------------------------------
 DROP TABLE IF EXISTS favorites;
 DROP TABLE IF EXISTS tourist_places;
@@ -55,12 +55,13 @@ CREATE TABLE favorites (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------
--- Insert Default Admin User and Sample Users
--- Password for sample user 'john@example.com' is 'user123'
+-- Insert Default Sample Users
+-- Passwords are stored as secure Werkzeug scrypt hashes.
+-- Plaintext password for both accounts is: user123
 -- ---------------------------------------------------------
 INSERT INTO users (name, email, password) VALUES 
-('John Doe', 'john@example.com', 'user123'),
-('Alice Smith', 'alice@example.com', 'user123');
+('John Doe', 'john@example.com', 'scrypt:32768:8:1$l2VIkZ8UydQWMIKI$09d4944fbbdb0bb9076073865923951157f3c65af86218e524c2fa1092c36b9e2bd1f8445030c327a558d1334a5ca290d222aa7b8e5daca0c0783f152d5ba660'),
+('Alice Smith', 'alice@example.com', 'scrypt:32768:8:1$l2VIkZ8UydQWMIKI$09d4944fbbdb0bb9076073865923951157f3c65af86218e524c2fa1092c36b9e2bd1f8445030c327a558d1334a5ca290d222aa7b8e5daca0c0783f152d5ba660');
 
 -- ---------------------------------------------------------
 -- Insert Rich Sample Tourist Places Data

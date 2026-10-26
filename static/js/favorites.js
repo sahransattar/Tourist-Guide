@@ -29,12 +29,20 @@ function showToast(message, type = 'info') {
 
 async function toggleFavorite(placeId, buttonElement) {
   try {
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    if (csrfToken) {
+      headers['X-CSRFToken'] = csrfToken;
+    }
+
     const response = await fetch('/api/favorites/toggle', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ place_id: placeId })
+      headers: headers,
+      body: JSON.stringify({ place_id: placeId, csrf_token: csrfToken })
     });
 
     const data = await response.json();
