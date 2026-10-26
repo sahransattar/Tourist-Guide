@@ -13,7 +13,7 @@ import secrets
 import logging
 from collections import defaultdict
 from functools import wraps
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, parse_qs, urlencode
 
 from flask import (
     Flask, render_template, request, redirect,
@@ -34,6 +34,25 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# WSGI middleware to normalize PATH_INFO for Vercel serverless rewrites
+class VercelPathMiddleware:
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        query_string = environ.get('QUERY_STRING', '')
+        if '__path' in query_string:
+            params = parse_qs(query_string, keep_blank_values=True)
+            if '__path' in params:
+                dest = params.pop('__path')[0].lstrip('/')
+                environ['PATH_INFO'] = '/' + dest
+                environ['QUERY_STRING'] = urlencode(params, doseq=True)
+        elif environ.get('PATH_INFO') in ('/api/index', '/api/index.py'):
+            environ['PATH_INFO'] = '/'
+        return self.wsgi_app(environ, start_response)
+
+app.wsgi_app = VercelPathMiddleware(app.wsgi_app)
 
 # Configure Secret Key
 configured_secret = os.environ.get('SECRET_KEY')
@@ -218,6 +237,7 @@ def admin_required(f):
 # ---------------------------------------------------------
 
 @app.route('/')
+@app.route('/api/index')
 def home():
     """Home Page route showing hero, search bar, and featured tourist places."""
     try:
