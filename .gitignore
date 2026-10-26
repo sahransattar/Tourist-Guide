@@ -8,8 +8,8 @@ env/
 venv/
 ENV/
 
-# Database files (optional runtime local db)
-tourist_guide.db
+# Database files (local runtime)
+# tourist_guide.db bundled for serverless deployment fallback
 
 # Archives
 *.zip

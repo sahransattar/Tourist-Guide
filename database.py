@@ -9,6 +9,7 @@ Suitable for BCA Final Year Project
 import os
 import re
 import ssl
+import shutil
 import logging
 import sqlite3
 import urllib.parse
@@ -37,6 +38,27 @@ IS_PRODUCTION = (
 )
 
 SQLITE_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tourist_guide.db')
+
+
+def get_sqlite_runtime_path():
+    """
+    Returns the appropriate path for the SQLite database.
+    In serverless environments (Vercel / Lambda), copies the bundled database
+    to /tmp if not already present so that writes succeed on the ephemeral disk.
+    """
+    bundled_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tourist_guide.db')
+    if (IS_VERCEL or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')) and os.name != 'nt':
+        tmp_db = '/tmp/tourist_guide.db'
+        if not os.path.exists(tmp_db) and os.path.exists(bundled_path):
+            try:
+                shutil.copyfile(bundled_path, tmp_db)
+                logger.info("[DATABASE] Copied bundled tourist_guide.db to writable /tmp/tourist_guide.db")
+            except Exception as e:
+                logger.warning("[DATABASE] Could not copy to /tmp: %s. Using bundled DB read-only.", e)
+                return bundled_path
+        if os.path.exists(tmp_db):
+            return tmp_db
+    return bundled_path
 
 
 class DatabaseError(Exception):
@@ -125,14 +147,37 @@ class DatabaseManager:
         config = parse_database_config()
 
         if IS_PRODUCTION:
-            # In Vercel / production, local SQLite files cannot be written to.
-            # A persistent external database is strictly required.
+            if config['configured'] and MYSQL_AVAILABLE:
+                try:
+                    conn = self._create_mysql_connection(config, connect_timeout=5)
+                    self._init_mysql_schema(conn)
+                    conn.close()
+                    self.use_mysql = True
+                    self._initialized = True
+                    self._last_error = None
+                    logger.info("[DATABASE] Connected successfully to production MySQL database at %s:%d",
+                                config['host'], config['port'])
+                    return
+                except Exception as e:
+                    self.use_mysql = False
+                    self._last_error = f"MySQL connection failed: {str(e)}"
+                    logger.error("[DATABASE ERROR] Failed to connect to production MySQL at %s:%d: %s",
+                                 config['host'], config['port'], str(e), exc_info=True)
+
+            # Fallback to embedded SQLite database in production if MySQL not configured or reachable
+            sqlite_path = get_sqlite_runtime_path()
+            if os.path.exists(sqlite_path) and not os.environ.get('REQUIRE_EXTERNAL_DB'):
+                self.use_mysql = False
+                self._init_sqlite_schema()
+                self._initialized = True
+                self._last_error = None
+                logger.info("[DATABASE] Using embedded SQLite database (%s) on production", sqlite_path)
+                return
+
             if not config['configured']:
                 msg = (
                     "Production environment detected (e.g. Vercel), but no external MySQL database "
-                    "is configured. Local SQLite cannot be written on serverless read-only filesystems. "
-                    "Please configure MYSQL_HOST (or DATABASE_URL), MYSQL_USER, MYSQL_PASSWORD, "
-                    "and MYSQL_DB in your Vercel Project Settings -> Environment Variables."
+                    "is configured. Please configure MYSQL_HOST (or DATABASE_URL) in your Vercel Project Settings."
                 )
                 self._last_error = msg
                 logger.error("[DATABASE CONFIG ERROR] %s", msg)
@@ -144,21 +189,6 @@ class DatabaseManager:
                 self._last_error = msg
                 logger.error("[DATABASE ERROR] %s", msg)
                 return
-
-            try:
-                conn = self._create_mysql_connection(config, connect_timeout=5)
-                self._init_mysql_schema(conn)
-                conn.close()
-                self.use_mysql = True
-                self._initialized = True
-                self._last_error = None
-                logger.info("[DATABASE] Connected successfully to production MySQL database at %s:%d",
-                            config['host'], config['port'])
-            except Exception as e:
-                self.use_mysql = False
-                self._last_error = f"MySQL connection failed: {str(e)}"
-                logger.error("[DATABASE ERROR] Failed to connect to production MySQL at %s:%d: %s",
-                             config['host'], config['port'], str(e), exc_info=True)
         else:
             # Development mode: prefer MySQL if configured and reachable; otherwise use local SQLite.
             if config['configured'] and MYSQL_AVAILABLE:
@@ -220,6 +250,24 @@ class DatabaseManager:
         config = parse_database_config()
 
         if IS_PRODUCTION:
+            if self.use_mysql and config['configured']:
+                try:
+                    return self._create_mysql_connection(config, connect_timeout=5)
+                except Exception as e:
+                    logger.error("Production MySQL connection failed: %s", str(e), exc_info=True)
+                    sqlite_path = get_sqlite_runtime_path()
+                    if not os.path.exists(sqlite_path) or os.environ.get('REQUIRE_EXTERNAL_DB'):
+                        raise DatabaseConnectionError(
+                            "Failed to connect to production database. Please verify your database host, credentials, and network access."
+                        ) from e
+
+            # Fallback to embedded SQLite database in production if MySQL not configured
+            sqlite_path = get_sqlite_runtime_path()
+            if os.path.exists(sqlite_path) and not os.environ.get('REQUIRE_EXTERNAL_DB'):
+                conn = sqlite3.connect(sqlite_path, timeout=10.0)
+                conn.row_factory = sqlite3.Row
+                return conn
+
             if not config['configured']:
                 raise DatabaseConfigurationError(
                     "Production database is not configured. Please set MYSQL_HOST or DATABASE_URL in Vercel environment variables."
@@ -243,7 +291,7 @@ class DatabaseManager:
                     self.use_mysql = False
 
             # Local SQLite connection
-            conn = sqlite3.connect(SQLITE_DB_PATH, timeout=10.0)
+            conn = sqlite3.connect(get_sqlite_runtime_path(), timeout=10.0)
             conn.row_factory = sqlite3.Row
             return conn
 
@@ -360,7 +408,7 @@ class DatabaseManager:
     def _init_sqlite_schema(self):
         """Initializes SQLite tables and seeds sample data for local development."""
         try:
-            conn = sqlite3.connect(SQLITE_DB_PATH)
+            conn = sqlite3.connect(get_sqlite_runtime_path())
             cursor = conn.cursor()
 
             cursor.execute('''

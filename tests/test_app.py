@@ -640,6 +640,7 @@ class DatabaseProductionBehaviorTestCase(unittest.TestCase):
         """Verify that in production (Vercel), missing MySQL raises DatabaseConfigurationError without silent SQLite fallback."""
         import importlib
         os.environ['VERCEL'] = '1'
+        os.environ['REQUIRE_EXTERNAL_DB'] = '1'
         os.environ.pop('MYSQL_HOST', None)
         os.environ.pop('DATABASE_URL', None)
         os.environ.pop('MYSQL_URL', None)
@@ -659,6 +660,7 @@ class DatabaseProductionBehaviorTestCase(unittest.TestCase):
 
         # Cleanup environment
         os.environ.pop('VERCEL', None)
+        os.environ.pop('REQUIRE_EXTERNAL_DB', None)
         importlib.reload(db_mod)
 
 
