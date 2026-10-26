@@ -254,6 +254,16 @@ def home():
     )
 
 
+@app.route('/api/index')
+def vercel_debug():
+    return jsonify({
+        'path': request.path,
+        'headers': dict(request.headers),
+        'url': request.url,
+        'base_url': request.base_url
+    })
+
+
 @app.route('/places')
 def view_places():
     """View & Search Tourist Places route with category/keyword filters, sorting, and pagination."""
