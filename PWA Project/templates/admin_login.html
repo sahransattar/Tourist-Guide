@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Authentication - Explore India PWA{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="auth-wrapper">
+    <div class="auth-card" style="border-color: rgba(245, 158, 11, 0.4);">
+      <div class="auth-header">
+        <div style="font-size: 2.5rem; color: var(--warning); margin-bottom: 0.5rem;">
+          <i class="fas fa-user-shield"></i>
+        </div>
+        <h1 class="auth-title">Admin Portal</h1>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Management authentication required</p>
+      </div>
+
+      <form action="{{ url_for('admin_login') }}" method="POST">
+        <div class="form-group">
+          <label class="form-label" for="username"><i class="fas fa-user-gear"></i> Admin Username</label>
+          <input type="text" id="username" name="username" class="form-control" placeholder="admin" required value="admin">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password"><i class="fas fa-key"></i> Admin Password</label>
+          <input type="password" id="password" name="password" class="form-control" placeholder="••••••••" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem; padding: 0.75rem; background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);">
+          <i class="fas fa-shield-halved"></i> Authenticate Admin
+        </button>
+      </form>
+
+      <div style="background: rgba(245, 158, 11, 0.1); border: 1px dashed rgba(245, 158, 11, 0.3); border-radius: var(--radius-sm); padding: 0.75rem; margin-top: 1.5rem; text-align: center; font-size: 0.82rem; color: #fbbf24;">
+        <i class="fas fa-circle-info"></i> Default Credentials: <strong>admin</strong> / <strong>admin123</strong>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
