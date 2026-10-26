@@ -127,10 +127,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const grid = document.getElementById('nearby-grid');
             if (!container || !grid) return;
 
+            const resolveImg = (img) => {
+              if (!img) return '/static/images/default_place.jpg';
+              if (img.startsWith('http://') || img.startsWith('https://')) return img;
+              return '/static/images/' + img;
+            };
+
             grid.innerHTML = data.places.map((place) => `
               <div class="place-card">
                 <div class="card-img-wrapper">
-                  <img src="/static/images/${place.image}" alt="${place.name}" class="card-img" onerror="this.src='/static/images/default_place.jpg'">
+                  <img src="${resolveImg(place.image)}" alt="${place.name}" class="card-img" onerror="this.onerror=null; this.src='/static/images/default_place.jpg';">
                   <span class="category-pill">${place.category || 'Heritage'}</span>
                   <span class="distance-badge"><i class="fas fa-location-arrow"></i> ${place.distance_km} km away</span>
                 </div>
@@ -142,9 +148,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="info-item"><i class="far fa-clock" style="color: var(--primary);"></i> ${place.timings}</span>
                     <span class="info-item" style="margin-left: auto;"><i class="fas fa-ticket" style="color: var(--accent);"></i> ${place.entry_fee}</span>
                   </div>
-                  <a href="/place/${place.place_id}" class="btn btn-primary" style="width: 100%; margin-top: 0.75rem;">
-                    View Details & Directions <i class="fas fa-chevron-right"></i>
-                  </a>
+                  <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+                    <a href="/place/${place.place_id}" class="btn btn-outline" style="flex: 1;">
+                      Details <i class="fas fa-chevron-right"></i>
+                    </a>
+                    <button type="button" onclick="openAddToTripModal(${place.place_id}, '${place.name.replace(/'/g, "\\'")}')" class="btn btn-outline btn-sm" title="Add to Trip Itinerary" style="color: var(--primary); border-color: rgba(6, 182, 212, 0.4);">
+                      <i class="fas fa-route"></i> + Trip
+                    </button>
+                  </div>
                 </div>
               </div>
             `).join('');
@@ -209,6 +220,90 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       if (typeof showToast === 'function') {
         showToast('Please copy the URL from your address bar.', 'info');
+      }
+    }
+  };
+
+  // 8. Add Destination to Trip Itinerary Modal
+  window.openAddToTripModal = async function (placeId, placeName) {
+    const modal = document.getElementById('modal-add-to-trip');
+    if (!modal) return;
+
+    document.getElementById('trip-modal-place-id').value = placeId;
+    document.getElementById('trip-modal-place-name').textContent = placeName;
+
+    const select = document.getElementById('trip-select-itinerary');
+    select.innerHTML = '<option value="">Loading your trips...</option>';
+
+    try {
+      const res = await fetch('/api/user/itineraries');
+      if (res.status === 401) {
+        if (typeof showToast === 'function') {
+          showToast('Please log in to add places to your trip itinerary.', 'warning');
+        }
+        setTimeout(() => window.location.href = '/login', 1500);
+        return;
+      }
+      const data = await res.json();
+      if (data.success && data.itineraries && data.itineraries.length > 0) {
+        select.innerHTML = '<option value="">-- Choose an Itinerary --</option>' +
+          data.itineraries.map(t => `<option value="${t.itinerary_id}">${t.title}</option>`).join('');
+      } else {
+        select.innerHTML = '<option value="">No trips found. Click below to create one!</option>';
+      }
+    } catch (err) {
+      select.innerHTML = '<option value="">Error loading trips</option>';
+    }
+
+    openModal('modal-add-to-trip');
+  };
+
+  window.submitAddToTrip = async function (e) {
+    e.preventDefault();
+    const placeId = document.getElementById('trip-modal-place-id').value;
+    const itineraryId = document.getElementById('trip-select-itinerary').value;
+    const dayNumber = document.getElementById('trip-modal-day').value;
+    const notes = document.getElementById('trip-modal-notes').value;
+
+    if (!itineraryId) {
+      if (typeof showToast === 'function') {
+        showToast('Please select a trip itinerary first, or create a new one.', 'warning');
+      }
+      return;
+    }
+
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+    try {
+      const res = await fetch('/api/itinerary/add_place', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+          place_id: placeId,
+          itinerary_id: itineraryId,
+          day_number: dayNumber,
+          notes: notes,
+          csrf_token: csrfToken
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (typeof showToast === 'function') {
+          showToast(data.message || 'Added to your trip itinerary!', 'success');
+        }
+        closeModal('modal-add-to-trip');
+      } else {
+        if (typeof showToast === 'function') {
+          showToast(data.message || 'Could not add stop.', 'danger');
+        }
+      }
+    } catch (err) {
+      if (typeof showToast === 'function') {
+        showToast('Error connecting to trip planner.', 'danger');
       }
     }
   };

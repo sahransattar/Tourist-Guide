@@ -59,6 +59,35 @@ CREATE TABLE favorites (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------
+-- Table: Itineraries (Trip Planner)
+-- Stores custom trip plans created by users
+-- ---------------------------------------------------------
+CREATE TABLE IF NOT EXISTS itineraries (
+    itinerary_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------
+-- Table: Itinerary_Items
+-- Stores destination stops along a trip with Day & Order
+-- ---------------------------------------------------------
+CREATE TABLE IF NOT EXISTS itinerary_items (
+    item_id INT AUTO_INCREMENT PRIMARY KEY,
+    itinerary_id INT NOT NULL,
+    place_id INT NOT NULL,
+    day_number INT DEFAULT 1,
+    order_index INT DEFAULT 0,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (itinerary_id) REFERENCES itineraries(itinerary_id) ON DELETE CASCADE,
+    FOREIGN KEY (place_id) REFERENCES tourist_places(place_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------
 -- Insert Default Sample Users
 -- Passwords are stored as secure Werkzeug scrypt hashes.
 -- Plaintext password for both accounts is: user123

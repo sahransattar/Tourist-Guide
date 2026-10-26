@@ -19,7 +19,7 @@
 
   <!-- Hero Header Visual -->
   <div class="details-hero">
-    <img src="{{ url_for('static', filename='images/' + place.image) }}" alt="{{ place.name }}" onerror="this.src='/static/images/default_place.jpg'">
+    <img src="{{ place.image|image_url }}" alt="{{ place.name }}" onerror="this.onerror=null; this.src='/static/images/default_place.jpg';">
     <div class="details-overlay">
       <div style="width: 100%;">
         <span class="category-pill" style="position: static; display: inline-block; margin-bottom: 0.75rem;">
@@ -61,6 +61,10 @@
         <button class="btn btn-primary fav-btn-large {% if is_favorite %}active{% endif %}" onclick="toggleFavorite({{ place.place_id }}, this)">
           <i class="{% if is_favorite %}fas{% else %}far{% endif %} fa-heart"></i>
           <span>{% if is_favorite %}Saved in Favorites{% else %}Save to Favorites{% endif %}</span>
+        </button>
+
+        <button type="button" class="btn btn-outline" onclick="openAddToTripModal({{ place.place_id }}, '{{ place.name|replace("'", "\\'") }}')">
+          <i class="fas fa-route"></i> Add to Itinerary
         </button>
 
         {% if place.latitude and place.longitude %}
@@ -136,7 +140,7 @@
         {% for r in related_places %}
           <div class="place-card">
             <div class="card-img-wrapper" style="height: 180px;">
-              <img src="{{ url_for('static', filename='images/' + r.image) }}" alt="{{ r.name }}" class="card-img" loading="lazy" onerror="this.src='/static/images/default_place.jpg'">
+              <img src="{{ r.image|image_url }}" alt="{{ r.name }}" class="card-img" loading="lazy" onerror="this.onerror=null; this.src='/static/images/default_place.jpg';">
               <span class="category-pill">{{ r.category or 'Heritage' }}</span>
             </div>
             <div class="card-body">

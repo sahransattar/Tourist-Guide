@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ trip.title }} - Trip Itinerary | Explore India{% endblock %}
+
+{% block content %}
+<div class="container itinerary-print-container" style="padding-top: 2rem; padding-bottom: 4rem;">
+  <!-- Breadcrumb Navigation -->
+  <nav aria-label="Breadcrumb" style="display: flex; gap: 0.5rem; align-items: center; font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.5rem; flex-wrap: wrap;">
+    <a href="{{ url_for('home') }}" style="color: var(--text-muted);"><i class="fas fa-house"></i> Home</a>
+    <i class="fas fa-chevron-right" style="font-size: 0.65rem; color: var(--text-subtle);"></i>
+    <a href="{{ url_for('itineraries') }}" style="color: var(--text-muted);">Trip Planner</a>
+    <i class="fas fa-chevron-right" style="font-size: 0.65rem; color: var(--text-subtle);"></i>
+    <span style="color: var(--primary); font-weight: 600;">{{ trip.title }}</span>
+  </nav>
+
+  <!-- Trip Header Box -->
+  <div style="background: var(--bg-glass-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); padding: 2rem; margin-bottom: 2.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
+    <div style="max-width: 650px;">
+      <span class="status-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent); border: 1px solid rgba(16, 185, 129, 0.3); margin-bottom: 0.5rem; display: inline-block;">
+        <i class="fas fa-flag-checkered"></i> {{ total_stops }} Planned {{ 'Stop' if total_stops == 1 else 'Stops' }}
+      </span>
+      <h1 class="title-serif" style="font-size: 2.2rem; color: #fff; margin-bottom: 0.5rem;">
+        {{ trip.title }}
+      </h1>
+      <p style="color: var(--text-muted); font-size: 1rem; line-height: 1.6;">
+        {{ trip.description or 'Custom travel itinerary created on Explore India.' }}
+      </p>
+    </div>
+
+    <!-- Action Buttons -->
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+      <button onclick="window.print()" class="btn btn-outline" title="Print or save as PDF">
+        <i class="fas fa-print"></i> Print Itinerary
+      </button>
+
+      {% if google_maps_route %}
+        <a href="{{ google_maps_route }}" target="_blank" rel="noopener" class="btn btn-primary" title="Open multi-stop route in Google Maps">
+          <i class="fas fa-map-location-dot"></i> View Full Route on Maps
+        </a>
+      {% endif %}
+
+      <a href="{{ url_for('view_places') }}" class="btn btn-outline">
+        <i class="fas fa-plus"></i> Browse Places to Add
+      </a>
+    </div>
+  </div>
+
+  <!-- Day-by-Day Timeline Breakdown -->
+  {% if days %}
+    {% for day_num, day_items in days %}
+      <div style="margin-bottom: 3rem;">
+        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+          <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; box-shadow: 0 0 15px var(--primary-glow);">
+            D{{ day_num }}
+          </div>
+          <div>
+            <h2 class="title-serif" style="font-size: 1.5rem; color: #fff; line-height: 1.2;">
+              Day {{ day_num }} Schedule
+            </h2>
+            <span style="font-size: 0.82rem; color: var(--text-muted);">{{ day_items|length }} {{ 'destination' if day_items|length == 1 else 'destinations' }} to explore</span>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; padding-left: 1rem; border-left: 2px dashed rgba(6, 182, 212, 0.3);">
+          {% for item in day_items %}
+            <div class="itinerary-card" style="background: var(--bg-glass-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); overflow: hidden; display: flex; flex-direction: column;">
+              <div class="card-img-wrapper" style="height: 180px;">
+                <img src="{{ item.image|image_url }}" alt="{{ item.place_name }}" class="card-img" loading="lazy" onerror="this.onerror=null; this.src='/static/images/default_place.jpg';">
+                <span class="category-pill">{{ item.category or 'Heritage' }}</span>
+              </div>
+              <div class="card-body">
+                <h3 class="place-title" style="font-size: 1.25rem;">{{ item.place_name }}</h3>
+                <div class="place-location" style="margin-bottom: 0.75rem;">
+                  <i class="fas fa-location-dot" style="color: var(--primary);"></i> {{ item.location }}
+                </div>
+
+                {% if item.notes %}
+                  <div style="background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.25); border-radius: var(--radius-sm); padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-muted);">
+                    <i class="fas fa-pen-nib" style="color: var(--primary);"></i> <strong>Notes:</strong> {{ item.notes }}
+                  </div>
+                {% endif %}
+
+                <div class="card-info-row" style="margin-bottom: 1rem;">
+                  <span class="info-item"><i class="far fa-clock" style="color: var(--primary);"></i> {{ item.timings }}</span>
+                  <span class="info-item" style="margin-left: auto;"><i class="fas fa-ticket" style="color: var(--accent);"></i> {{ item.entry_fee }}</span>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; margin-top: auto;">
+                  <a href="{{ url_for('place_details', place_id=item.place_id) }}" class="btn btn-outline btn-sm" style="flex: 1;">
+                    Details
+                  </a>
+                  {% if item.latitude and item.longitude %}
+                    <a href="https://www.google.com/maps/dir/?api=1&destination={{ item.latitude }},{{ item.longitude }}" target="_blank" rel="noopener" class="btn btn-primary btn-sm" title="Directions">
+                      <i class="fas fa-diamond-turn-right"></i>
+                    </a>
+                  {% endif %}
+                  <button onclick="removeItineraryItem({{ item.item_id }}, this)" class="btn btn-danger btn-sm" title="Remove stop">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <!-- Empty Itinerary State -->
+    <div style="text-align: center; padding: 4.5rem 1.5rem; background: var(--bg-glass-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); max-width: 600px; margin: 0 auto;">
+      <i class="fas fa-map-pin" style="font-size: 3rem; color: var(--text-subtle); margin-bottom: 1.25rem;"></i>
+      <h3 class="title-serif" style="font-size: 1.5rem; color: #fff; margin-bottom: 0.5rem;">Your Trip Has No Stops Yet</h3>
+      <p style="color: var(--text-muted); margin-bottom: 2rem; line-height: 1.6;">
+        Explore our curated destinations across India and add places to this itinerary with one click!
+      </p>
+      <a href="{{ url_for('view_places') }}" class="btn btn-primary">
+        <i class="fas fa-compass"></i> Browse Tourist Places
+      </a>
+    </div>
+  {% endif %}
+</div>
+
+<script>
+async function removeItineraryItem(itemId, btn) {
+  if (!confirm('Remove this destination stop from your trip?')) return;
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+  try {
+    const res = await fetch('/api/itinerary/remove_item', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify({ item_id: itemId, csrf_token: csrfToken })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (typeof showToast === 'function') {
+        showToast('Stop removed from itinerary.', 'info');
+      }
+      const card = btn.closest('.itinerary-card');
+      if (card) {
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.85)';
+        setTimeout(() => location.reload(), 300);
+      }
+    } else {
+      if (typeof showToast === 'function') {
+        showToast(data.message || 'Error removing stop.', 'danger');
+      }
+    }
+  } catch (err) {
+    if (typeof showToast === 'function') {
+      showToast('Connection error.', 'danger');
+    }
+  }
+}
+</script>
+{% endblock %}

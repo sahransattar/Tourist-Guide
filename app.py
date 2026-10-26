@@ -111,10 +111,25 @@ def get_csrf_token():
     return session['_csrf_token']
 
 
+@app.template_filter('image_url')
+def image_url_filter(image_name):
+    """
+    Resolves image source URL.
+    Returns remote URL directly if starting with http(s)://,
+    otherwise resolves to local static/images/ path.
+    """
+    if not image_name:
+        return url_for('static', filename='images/default_place.jpg')
+    image_str = str(image_name).strip()
+    if image_str.startswith(('http://', 'https://')):
+        return image_str
+    return url_for('static', filename='images/' + image_str)
+
+
 @app.context_processor
-def inject_csrf_token():
-    """Injects csrf_token helper into all Jinja2 templates."""
-    return dict(csrf_token=get_csrf_token)
+def inject_template_helpers():
+    """Injects csrf_token and image_url helpers into all Jinja2 templates."""
+    return dict(csrf_token=get_csrf_token, image_url=image_url_filter)
 
 
 @app.before_request
@@ -128,7 +143,12 @@ def validate_csrf():
         if request.endpoint in ('static',):
             return None
 
-        submitted_token = request.headers.get('X-CSRFToken') or request.form.get('csrf_token')
+        json_body = request.get_json(silent=True) if request.is_json else None
+        submitted_token = (
+            request.headers.get('X-CSRFToken') or
+            request.form.get('csrf_token') or
+            (json_body.get('csrf_token') if json_body else None)
+        )
         expected_token = session.get('_csrf_token')
 
         if not expected_token or not submitted_token or not secrets.compare_digest(str(submitted_token), str(expected_token)):
@@ -246,7 +266,7 @@ def view_places():
     except (ValueError, TypeError):
         page = 1
 
-    per_page = 6
+    per_page = 9
 
     # Base WHERE clause
     where_sql = " WHERE 1=1"
@@ -597,6 +617,220 @@ def toggle_favorite():
         return jsonify({'success': False, 'message': 'Database error occurred. Please try again.'}), 500
 
 
+# ---------------------------------------------------------
+# Trip Planner / Itinerary Builder Routes
+# ---------------------------------------------------------
+
+@app.route('/itineraries')
+@app.route('/itinerary')
+def itineraries():
+    """View list of user's custom travel itineraries."""
+    if 'user_id' not in session:
+        flash("Please log in to plan trips and view your travel itineraries.", "info")
+        return redirect(url_for('login', next=request.path))
+
+    user_id = session['user_id']
+    query = """
+        SELECT i.*, COUNT(it.item_id) as total_stops
+        FROM itineraries i
+        LEFT JOIN itinerary_items it ON i.itinerary_id = it.itinerary_id
+        WHERE i.user_id = %s
+        GROUP BY i.itinerary_id
+        ORDER BY i.itinerary_id DESC
+    """
+    try:
+        user_itineraries = query_db(query, (user_id,), fetchall=True) or []
+    except Exception as e:
+        logger.error("Error retrieving itineraries for user_id=%s: %s", user_id, e)
+        user_itineraries = []
+
+    return render_template('itinerary.html', itineraries=user_itineraries)
+
+
+@app.route('/itinerary/<int:itinerary_id>')
+def itinerary_detail(itinerary_id):
+    """View a specific trip plan with day-by-day stops and multi-stop map routing."""
+    if 'user_id' not in session:
+        flash("Please log in to view this trip itinerary.", "warning")
+        return redirect(url_for('login', next=request.path))
+
+    user_id = session['user_id']
+    try:
+        trip = query_db("SELECT * FROM itineraries WHERE itinerary_id = %s AND user_id = %s", (itinerary_id, user_id), fetchone=True)
+    except Exception as e:
+        logger.error("Error fetching itinerary_id=%s: %s", itinerary_id, e)
+        trip = None
+
+    if not trip:
+        flash("Trip itinerary not found or access denied.", "warning")
+        return redirect(url_for('itineraries'))
+
+    items_query = """
+        SELECT it.*, p.name as place_name, p.location, p.category, p.image, p.timings, p.entry_fee, p.latitude, p.longitude
+        FROM itinerary_items it
+        JOIN tourist_places p ON it.place_id = p.place_id
+        WHERE it.itinerary_id = %s
+        ORDER BY it.day_number ASC, it.order_index ASC, it.item_id ASC
+    """
+    try:
+        items = query_db(items_query, (itinerary_id,), fetchall=True) or []
+    except Exception as e:
+        logger.error("Error fetching items for itinerary_id=%s: %s", itinerary_id, e)
+        items = []
+
+    # Group items by day_number
+    days_dict = defaultdict(list)
+    for itm in items:
+        days_dict[itm['day_number']].append(itm)
+    sorted_days = sorted(days_dict.items(), key=lambda x: x[0])
+
+    # Build multi-stop Google Maps directions link if coordinates available
+    coords_list = [f"{itm['latitude']},{itm['longitude']}" for itm in items if itm.get('latitude') and itm.get('longitude')]
+    google_maps_route = None
+    if coords_list:
+        if len(coords_list) == 1:
+            google_maps_route = f"https://www.google.com/maps/dir/?api=1&destination={coords_list[0]}"
+        else:
+            origin = coords_list[0]
+            destination = coords_list[-1]
+            waypoints = '|'.join(coords_list[1:-1])
+            google_maps_route = f"https://www.google.com/maps/dir/?api=1&origin={origin}&destination={destination}"
+            if waypoints:
+                google_maps_route += f"&waypoints={waypoints}"
+
+    return render_template('itinerary_detail.html', trip=trip, days=sorted_days, total_stops=len(items), google_maps_route=google_maps_route)
+
+
+@app.route('/api/itinerary/create', methods=['POST'])
+def api_itinerary_create():
+    """Creates a new trip itinerary for authenticated user."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Authentication required. Please login.'}), 401
+
+    data = request.get_json(silent=True) or request.form
+    title = (data.get('title') or '').strip()
+    description = (data.get('description') or '').strip()
+
+    if not title:
+        return jsonify({'success': False, 'message': 'Trip title is required.'}), 400
+
+    user_id = session['user_id']
+    try:
+        itinerary_id = query_db(
+            "INSERT INTO itineraries (user_id, title, description) VALUES (%s, %s, %s)",
+            (user_id, title, description),
+            commit=True
+        )
+        if request.is_json:
+            return jsonify({'success': True, 'itinerary_id': itinerary_id, 'message': f"Trip '{title}' created!"})
+        flash(f"Trip '{title}' created successfully!", "success")
+        return redirect(url_for('itinerary_detail', itinerary_id=itinerary_id))
+    except Exception as e:
+        logger.error("Error creating itinerary for user_id=%s: %s", user_id, e)
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Failed to create trip.'}), 500
+        flash("Could not create trip. Please try again.", "danger")
+        return redirect(url_for('itineraries'))
+
+
+@app.route('/api/itinerary/add_place', methods=['POST'])
+def api_itinerary_add_place():
+    """Adds a tourist destination stop to an itinerary."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Authentication required. Please login.'}), 401
+
+    data = request.get_json(silent=True) or request.form
+    try:
+        itinerary_id = int(data.get('itinerary_id'))
+        place_id = int(data.get('place_id'))
+        day_number = max(1, int(data.get('day_number', 1)))
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'message': 'Valid itinerary_id and place_id are required.'}), 400
+
+    notes = (data.get('notes') or '').strip()
+    user_id = session['user_id']
+
+    # Verify ownership of itinerary
+    try:
+        trip = query_db("SELECT itinerary_id FROM itineraries WHERE itinerary_id = %s AND user_id = %s", (itinerary_id, user_id), fetchone=True)
+        if not trip:
+            return jsonify({'success': False, 'message': 'Itinerary not found or access denied.'}), 403
+
+        query_db(
+            """INSERT INTO itinerary_items (itinerary_id, place_id, day_number, notes)
+               VALUES (%s, %s, %s, %s)""",
+            (itinerary_id, place_id, day_number, notes),
+            commit=True
+        )
+        return jsonify({'success': True, 'message': 'Destination added to trip itinerary!'})
+    except Exception as e:
+        logger.error("Error adding stop to itinerary_id=%s: %s", itinerary_id, e)
+        return jsonify({'success': False, 'message': 'Could not add destination.'}), 500
+
+
+@app.route('/api/itinerary/remove_item', methods=['POST'])
+def api_itinerary_remove_item():
+    """Removes a stop from an itinerary."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Authentication required.'}), 401
+
+    data = request.get_json(silent=True) or request.form
+    try:
+        item_id = int(data.get('item_id'))
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'message': 'Valid item_id is required.'}), 400
+
+    user_id = session['user_id']
+    try:
+        item = query_db(
+            """SELECT it.item_id, it.itinerary_id 
+               FROM itinerary_items it 
+               JOIN itineraries i ON it.itinerary_id = i.itinerary_id 
+               WHERE it.item_id = %s AND i.user_id = %s""",
+            (item_id, user_id),
+            fetchone=True
+        )
+        if not item:
+            return jsonify({'success': False, 'message': 'Stop not found or access denied.'}), 403
+
+        query_db("DELETE FROM itinerary_items WHERE item_id = %s", (item_id,), commit=True)
+        return jsonify({'success': True, 'message': 'Stop removed from itinerary.'})
+    except Exception as e:
+        logger.error("Error removing item_id=%s: %s", item_id, e)
+        return jsonify({'success': False, 'message': 'Could not remove stop.'}), 500
+
+
+@app.route('/api/itinerary/delete/<int:itinerary_id>', methods=['POST'])
+def api_itinerary_delete(itinerary_id):
+    """Deletes an entire itinerary."""
+    if 'user_id' not in session:
+        flash("Authentication required.", "warning")
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    try:
+        query_db("DELETE FROM itineraries WHERE itinerary_id = %s AND user_id = %s", (itinerary_id, user_id), commit=True)
+        flash("Trip itinerary deleted successfully.", "success")
+    except Exception as e:
+        logger.error("Error deleting itinerary_id=%s: %s", itinerary_id, e)
+        flash("Could not delete itinerary.", "danger")
+
+    return redirect(url_for('itineraries'))
+
+
+@app.route('/api/user/itineraries')
+def api_user_itineraries():
+    """Returns active user's itineraries in JSON for quick destination addition modals."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'itineraries': []})
+    try:
+        trips = query_db("SELECT itinerary_id, title FROM itineraries WHERE user_id = %s ORDER BY itinerary_id DESC", (session['user_id'],), fetchall=True) or []
+        return jsonify({'success': True, 'itineraries': trips})
+    except Exception as e:
+        logger.error("Error fetching user itineraries: %s", e)
+        return jsonify({'success': False, 'itineraries': []})
+
+
 @app.route('/api/places')
 def api_places():
     """Public API endpoint returning all places in JSON format for offline caching."""
@@ -721,18 +955,22 @@ def admin_dashboard():
         users = query_db("SELECT user_id, name, email, created_at FROM users ORDER BY user_id DESC", fetchall=True) or []
         favs_row = query_db("SELECT COUNT(*) as cnt FROM favorites", fetchone=True)
         total_favs = favs_row['cnt'] if favs_row else 0
+        itin_row = query_db("SELECT COUNT(*) as cnt FROM itineraries", fetchone=True)
+        total_itineraries = itin_row['cnt'] if itin_row else 0
     except Exception as e:
         logger.error("Error loading admin dashboard data: %s", e)
         places = []
         users = []
         total_favs = 0
+        total_itineraries = 0
         flash("Could not load dashboard data from database.", "warning")
 
     return render_template(
         'admin.html',
         places=places,
         users=users,
-        total_favs=total_favs
+        total_favs=total_favs,
+        total_itineraries=total_itineraries
     )
 
 

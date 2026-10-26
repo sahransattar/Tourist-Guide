@@ -56,6 +56,16 @@
         <div style="font-size: 0.85rem; color: var(--text-muted);">Total User Favorites</div>
       </div>
     </div>
+
+    <div class="stat-card" style="text-align: left; display: flex; align-items: center; gap: 1.25rem;">
+      <div style="width: 50px; height: 50px; border-radius: var(--radius-md); background: rgba(99, 102, 241, 0.15); color: var(--accent-secondary); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+        <i class="fas fa-route"></i>
+      </div>
+      <div>
+        <div style="font-size: 1.75rem; font-weight: 800; color: #fff; line-height: 1;">{{ total_itineraries }}</div>
+        <div style="font-size: 0.85rem; color: var(--text-muted);">Custom Itineraries</div>
+      </div>
+    </div>
   </div>
 
   <!-- Places Management Table Section -->
@@ -90,7 +100,7 @@
             <tr>
               <td>#{{ p.place_id }}</td>
               <td>
-                <img src="{{ url_for('static', filename='images/' + p.image) }}" alt="{{ p.name }}" style="width: 48px; height: 48px; border-radius: var(--radius-sm); object-fit: cover;" onerror="this.src='/static/images/default_place.jpg'">
+                <img src="{{ p.image|image_url }}" alt="{{ p.name }}" style="width: 48px; height: 48px; border-radius: var(--radius-sm); object-fit: cover;" onerror="this.onerror=null; this.src='/static/images/default_place.jpg';">
               </td>
               <td><strong>{{ p.name }}</strong></td>
               <td><i class="fas fa-location-dot" style="color: var(--primary);"></i> {{ p.location }}</td>

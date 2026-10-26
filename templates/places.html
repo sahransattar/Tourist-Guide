@@ -89,7 +89,11 @@
   <!-- Results Summary Header -->
   <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem;">
     <span style="font-size: 0.92rem; color: var(--text-muted);">
-      Showing <strong>{{ places|length }}</strong> of <strong>{{ total_places }}</strong> destinations
+      {% if total_places > 0 %}
+        Showing <strong>{{ (page - 1) * 9 + 1 }} &ndash; {{ [page * 9, total_places]|min }}</strong> of <strong>{{ total_places }}</strong> destinations
+      {% else %}
+        Showing <strong>0</strong> destinations
+      {% endif %}
       {% if search_query %} for <span style="color: var(--primary);">"{{ search_query }}"</span>{% endif %}
       {% if selected_category %} in <span class="category-pill" style="position: static; font-size: 0.75rem;">{{ selected_category }}</span>{% endif %}
     </span>
@@ -101,7 +105,7 @@
       {% for place in places %}
         <div class="place-card">
           <div class="card-img-wrapper">
-            <img src="{{ url_for('static', filename='images/' + place.image) }}" alt="{{ place.name }}" class="card-img" loading="lazy" onerror="this.src='/static/images/default_place.jpg'">
+            <img src="{{ place.image|image_url }}" alt="{{ place.name }}" class="card-img" loading="lazy" onerror="this.onerror=null; this.src='/static/images/default_place.jpg';">
             <span class="category-pill">{{ place.category or 'Heritage' }}</span>
             <button class="fav-btn {% if place.place_id in user_fav_ids %}active{% endif %}" onclick="toggleFavorite({{ place.place_id }}, this)" aria-label="Save to Favorites" title="Save to Favorites">
               <i class="{% if place.place_id in user_fav_ids %}fas{% else %}far{% endif %} fa-heart"></i>
@@ -117,9 +121,14 @@
               <span class="info-item"><i class="far fa-clock" style="color: var(--primary);"></i> {{ place.timings }}</span>
               <span class="info-item" style="margin-left: auto;"><i class="fas fa-ticket" style="color: var(--accent);"></i> {{ place.entry_fee }}</span>
             </div>
-            <a href="{{ url_for('place_details', place_id=place.place_id) }}" class="btn btn-outline" style="width: 100%; margin-top: 0.75rem;">
-              View Details <i class="fas fa-chevron-right"></i>
-            </a>
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+              <a href="{{ url_for('place_details', place_id=place.place_id) }}" class="btn btn-outline" style="flex: 1;">
+                Details <i class="fas fa-chevron-right"></i>
+              </a>
+              <button type="button" onclick="openAddToTripModal({{ place.place_id }}, '{{ place.name|replace("'", "\\'") }}')" class="btn btn-outline btn-sm" title="Add to Trip Itinerary" style="color: var(--primary); border-color: rgba(6, 182, 212, 0.4);">
+                <i class="fas fa-route"></i> + Trip
+              </button>
+            </div>
           </div>
         </div>
       {% endfor %}
@@ -140,14 +149,18 @@
           </span>
         {% endif %}
 
-        <!-- Page Numbers -->
+        <!-- Page Numbers (Windowed to avoid 20+ buttons) -->
         {% for p in range(1, total_pages + 1) %}
-          {% if p == page %}
-            <span class="pagination-number active">{{ p }}</span>
-          {% else %}
-            <a href="{{ url_for('view_places', page=p, q=search_query, category=selected_category, sort_by=sort_by) }}" class="pagination-number">
-              {{ p }}
-            </a>
+          {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+            {% if p == page %}
+              <span class="pagination-number active">{{ p }}</span>
+            {% else %}
+              <a href="{{ url_for('view_places', page=p, q=search_query, category=selected_category, sort_by=sort_by) }}" class="pagination-number">
+                {{ p }}
+              </a>
+            {% endif %}
+          {% elif p == page - 3 or p == page + 3 %}
+            <span style="color: var(--text-muted); padding: 0 0.25rem;">...</span>
           {% endif %}
         {% endfor %}
 

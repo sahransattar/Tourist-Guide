@@ -300,12 +300,43 @@ class DatabaseManager:
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             ''')
 
-            # Seed places if empty
+            # Itineraries table (Trip Planner)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS itineraries (
+                    itinerary_id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    title VARCHAR(150) NOT NULL,
+                    description TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            ''')
+
+            # Itinerary Items table (Stops along a trip)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS itinerary_items (
+                    item_id INT AUTO_INCREMENT PRIMARY KEY,
+                    itinerary_id INT NOT NULL,
+                    place_id INT NOT NULL,
+                    day_number INT DEFAULT 1,
+                    order_index INT DEFAULT 0,
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (itinerary_id) REFERENCES itineraries(itinerary_id) ON DELETE CASCADE,
+                    FOREIGN KEY (place_id) REFERENCES tourist_places(place_id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            ''')
+
+            # Seed places if empty or less than 60 destinations
             cursor.execute("SELECT COUNT(*) AS cnt FROM tourist_places")
             res = cursor.fetchone()
             count = res['cnt'] if isinstance(res, dict) else res[0]
-            if count == 0:
-                self._seed_places(cursor, is_sqlite=False)
+            if count < 60:
+                try:
+                    import seed_destinations
+                    seed_destinations.seed_database()
+                except Exception as seed_err:
+                    logger.warning("Auto-seed encountered: %s", seed_err)
             else:
                 self._sync_seed_coordinates(cursor, is_sqlite=False)
 
@@ -378,9 +409,41 @@ class DatabaseManager:
                 )
             ''')
 
+            # Itineraries table (Trip Planner)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS itineraries (
+                    itinerary_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    title TEXT NOT NULL,
+                    description TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+                )
+            ''')
+
+            # Itinerary Items table (Stops along a trip)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS itinerary_items (
+                    item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    itinerary_id INTEGER NOT NULL,
+                    place_id INTEGER NOT NULL,
+                    day_number INTEGER DEFAULT 1,
+                    order_index INTEGER DEFAULT 0,
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (itinerary_id) REFERENCES itineraries(itinerary_id) ON DELETE CASCADE,
+                    FOREIGN KEY (place_id) REFERENCES tourist_places(place_id) ON DELETE CASCADE
+                )
+            ''')
+
             cursor.execute("SELECT COUNT(*) FROM tourist_places")
-            if cursor.fetchone()[0] == 0:
-                self._seed_places(cursor, is_sqlite=True)
+            place_cnt = cursor.fetchone()[0]
+            if place_cnt < 60:
+                try:
+                    import seed_destinations
+                    seed_destinations.seed_database()
+                except Exception as seed_err:
+                    logger.warning("Auto-seed encountered: %s", seed_err)
             else:
                 self._sync_seed_coordinates(cursor, is_sqlite=True)
 

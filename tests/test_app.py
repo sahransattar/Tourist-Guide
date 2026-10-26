@@ -40,6 +40,8 @@ class TouristGuideAppTestCase(unittest.TestCase):
             commit=True
         )
         database.query_db("DELETE FROM favorites", commit=True)
+        database.query_db("DELETE FROM itinerary_items", commit=True)
+        database.query_db("DELETE FROM itineraries", commit=True)
 
     def get_csrf_token(self, response_data):
         """Helper to extract CSRF token from HTML response."""
@@ -516,6 +518,120 @@ class TouristGuideAppTestCase(unittest.TestCase):
 
         # Cleanup
         database.query_db("DELETE FROM tourist_places WHERE name = 'Hampi Ruins'", commit=True)
+
+    # -----------------------------------------------------
+    # 9. Expanded Destinations & Image URL Filter Tests
+    # -----------------------------------------------------
+
+    def test_expanded_destinations_count_and_coordinates(self):
+        """Verify that destination database contains at least 60 verified destinations with GPS coordinates."""
+        row = database.query_db("SELECT COUNT(*) as cnt FROM tourist_places", fetchone=True)
+        count = row['cnt'] if row else 0
+        self.assertGreaterEqual(count, 60, f"Expected at least 60 destinations, found {count}")
+
+        # Verify GPS coordinates coverage
+        places_with_coords = database.query_db(
+            "SELECT COUNT(*) as cnt FROM tourist_places WHERE latitude IS NOT NULL AND longitude IS NOT NULL",
+            fetchone=True
+        )
+        self.assertGreaterEqual(places_with_coords['cnt'], 60)
+
+        # Verify diversity of categories
+        categories = database.query_db("SELECT DISTINCT category FROM tourist_places", fetchall=True)
+        cat_set = {c['category'] for c in categories}
+        for expected_cat in ['Heritage', 'Palace', 'Beach', 'Nature', 'Spiritual']:
+            self.assertIn(expected_cat, cat_set)
+
+    def test_image_url_jinja_filter(self):
+        """Verify image_url filter handles remote URLs, local filenames, and empty fallbacks correctly."""
+        with self.app.test_request_context():
+            # Remote URLs must be returned untouched
+            remote_url = "https://images.unsplash.com/photo-1564507592333-c60657eea523"
+            self.assertEqual(flask_app.image_url_filter(remote_url), remote_url)
+
+            remote_http = "http://example.com/tourist.jpg"
+            self.assertEqual(flask_app.image_url_filter(remote_http), remote_http)
+
+            # Local filenames must be prefixed with /static/images/
+            self.assertEqual(flask_app.image_url_filter("taj_mahal.jpg"), "/static/images/taj_mahal.jpg")
+
+            # Empty or None must return default placeholder
+            self.assertEqual(flask_app.image_url_filter(None), "/static/images/default_place.jpg")
+            self.assertEqual(flask_app.image_url_filter(""), "/static/images/default_place.jpg")
+
+    # -----------------------------------------------------
+    # 10. Trip Planner / Itinerary Builder Workflow Tests
+    # -----------------------------------------------------
+
+    def test_itinerary_full_workflow(self):
+        """Verify trip creation, adding stops, viewing itinerary, and deletion."""
+        # Step 1: Login as demo user john@example.com
+        login_res = self.client.get('/login')
+        csrf_token = self.get_csrf_token(login_res.data)
+        self.client.post('/login', data={
+            'csrf_token': csrf_token,
+            'email': 'john@example.com',
+            'password': 'user123'
+        }, follow_redirects=True)
+
+        # Step 2: Access /itineraries page
+        itin_page = self.client.get('/itineraries')
+        self.assertEqual(itin_page.status_code, 200)
+        self.assertIn(b'My Trip Itineraries', itin_page.data)
+
+        # Step 3: Create a new Itinerary
+        itin_csrf = self.get_csrf_token(itin_page.data)
+        create_res = self.client.post('/api/itinerary/create', data={
+            'csrf_token': itin_csrf,
+            'title': 'Test Golden Triangle Tour',
+            'description': '3-day exploration of heritage marvels',
+            'start_date': '2026-11-01',
+            'end_date': '2026-11-03'
+        }, follow_redirects=True)
+        self.assertEqual(create_res.status_code, 200)
+        self.assertIn(b'Test Golden Triangle Tour', create_res.data)
+
+        # Fetch created itinerary ID
+        itin_row = database.query_db(
+            "SELECT itinerary_id FROM itineraries WHERE title = %s",
+            ('Test Golden Triangle Tour',),
+            fetchone=True
+        )
+        self.assertIsNotNone(itin_row)
+        itin_id = itin_row['itinerary_id']
+
+        # Step 4: Add a destination stop to this itinerary
+        place = database.query_db("SELECT place_id, name FROM tourist_places LIMIT 1", fetchone=True)
+        self.assertIsNotNone(place)
+
+        fresh_csrf = self.get_csrf_token(create_res.data)
+        add_stop_res = self.client.post('/api/itinerary/add_place', json={
+            'csrf_token': fresh_csrf,
+            'itinerary_id': itin_id,
+            'place_id': place['place_id'],
+            'day_number': 1,
+            'notes': 'Sunrise view at opening time'
+        }, headers={'X-CSRFToken': fresh_csrf})
+        self.assertEqual(add_stop_res.status_code, 200)
+        add_json = add_stop_res.get_json()
+        self.assertTrue(add_json['success'])
+
+        # Step 5: View itinerary detail page
+        detail_res = self.client.get(f'/itinerary/{itin_id}')
+        self.assertEqual(detail_res.status_code, 200)
+        self.assertIn(b'Day 1', detail_res.data)
+        self.assertIn(place['name'].encode('utf-8'), detail_res.data)
+
+        # Step 6: Delete the itinerary
+        del_csrf = self.get_csrf_token(detail_res.data)
+        del_res = self.client.post(
+            f'/api/itinerary/delete/{itin_id}',
+            data={'csrf_token': del_csrf},
+            headers={'X-CSRFToken': del_csrf},
+            follow_redirects=True
+        )
+        self.assertEqual(del_res.status_code, 200)
+        self.assertIn(b'deleted successfully', del_res.data)
 
 
 class DatabaseProductionBehaviorTestCase(unittest.TestCase):

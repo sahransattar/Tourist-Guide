@@ -11,6 +11,9 @@ ENV/
 # Database files (optional runtime local db)
 tourist_guide.db
 
+# Archives
+*.zip
+
 # OS files
 .DS_Store
 Thumbs.db

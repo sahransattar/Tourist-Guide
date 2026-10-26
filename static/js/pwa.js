@@ -36,9 +36,20 @@ document.addEventListener('DOMContentLoaded', () => {
   updateNetworkStatus();
 
   // 3. Catch PWA Install Prompt ('beforeinstallprompt')
+  window.dismissPwaPrompt = function () {
+    const banner = document.getElementById('pwa-install-banner');
+    if (banner) {
+      banner.classList.add('hidden');
+    }
+    sessionStorage.setItem('pwa_prompt_dismissed', 'true');
+  };
+
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredInstallPrompt = e;
+    if (sessionStorage.getItem('pwa_prompt_dismissed') === 'true') {
+      return;
+    }
     const installBanner = document.getElementById('pwa-install-banner');
     if (installBanner) {
       installBanner.classList.remove('hidden');

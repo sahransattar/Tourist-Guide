@@ -809,24 +809,76 @@ textarea.form-control {
 .alert-warning { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #fbbf24; }
 .alert-info    { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #93c5fd; }
 
-/* PWA Install Banner */
-.pwa-banner {
+/* PWA Install Floating Prompt (Compact, Non-Intrusive) */
+.pwa-floating-card {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 1500;
-  background: linear-gradient(135deg, #0284c7 0%, #0d9488 100%);
-  color: #fff;
-  padding: 1rem 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  bottom: 1.5rem;
+  right: 1.5rem;
+  max-width: 380px;
+  width: calc(100% - 3rem);
+  z-index: 1200;
+  background: var(--bg-surface);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  border-radius: var(--radius-lg);
+  padding: 1.15rem;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(6, 182, 212, 0.15);
+  backdrop-filter: blur(16px);
+  animation: slideUpFade 0.4s ease forwards;
 }
 
-.pwa-banner.hidden {
-  display: none;
+.pwa-floating-card.hidden {
+  display: none !important;
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fallback Image Design for Image Loading Error */
+.img-fallback-box {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(99, 102, 241, 0.2));
+  color: var(--text-muted);
+  gap: 0.5rem;
+}
+
+.img-fallback-box i {
+  font-size: 2.2rem;
+  color: var(--primary);
+  opacity: 0.8;
+}
+
+/* Print Media Stylesheet for Itinerary Builder */
+@media print {
+  .navbar, .footer, .pwa-floating-card, .btn, #toast-container, .modal-overlay, .nav-actions, .filter-panel, .pagination-container {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+  .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  .itinerary-card {
+    border: 1px solid #ccc !important;
+    background: #fff !important;
+    color: #111 !important;
+    page-break-inside: avoid;
+  }
 }
 
 /* Footer */

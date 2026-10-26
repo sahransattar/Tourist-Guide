@@ -19,6 +19,10 @@ A full-stack **Tourist Guide Progressive Web Application (PWA)** developed with 
   * Category filtering (Heritage, Palace, Beach, Nature, Spiritual, Adventure).
   * Dynamic sorting: Name (A-Z), Name (Z-A), Newest Added, and Oldest First.
   * Responsive client-side and server-side pagination with previous/next controls.
+* **Extensive Destination Database (90+ Curated Places)**:
+  * Over 90 authentic, verified Indian destinations spanning all major states and union territories.
+  * Real GPS coordinates, visiting hours, ticket prices, and categories.
+  * Hybrid image URL resolver supporting local files and remote CDN/Unsplash photography with graceful fallback.
 * **Destination Details Page**:
   * Semantic breadcrumb navigation.
   * Geographic GPS coordinates display.
@@ -31,7 +35,14 @@ A full-stack **Tourist Guide Progressive Web Application (PWA)** developed with 
   * Strictly isolated to the authenticated user's session.
   * Dynamic card removal on the favorites view with graceful empty state.
 
-### 📍 2. Geolocation & Proximity Detection Module
+### 🗺️ 2. Trip Planner & Multi-Day Itinerary Builder
+* **Custom Travel Itinerary Creation**: Users can create personalized travel plans with trip titles, descriptions, and travel date ranges.
+* **Multi-Day Stop Organization**: Add destination stops to any day (Day 1, Day 2, Day 3) along with personalized visit notes directly from destination cards or detail pages.
+* **Multi-Stop Google Maps Route Generation**: Automatically chains all stops in an itinerary into a unified Google Maps navigation link (`origin`, `destination`, and intermediate `waypoints`).
+* **Print & Export Ready**: Specially designed `@media print` CSS stylesheet generates clean, paper/PDF-ready travel vouchers hiding navigation headers and floating banners.
+* **Global Quick Add Modal**: Add any destination to any existing trip in one click from browse cards or detail views without leaving the page.
+
+### 📍 3. Geolocation & Proximity Detection Module
 * **Haversine Distance Formula**: Python backend computes great-circle distance between two geographic coordinates:
   $$d = 2r \arcsin\left(\sqrt{\sin^2\left(\frac{\Delta\phi}{2}\right) + \cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\Delta\lambda}{2}\right)}\right)$$
 * **Voluntary Geolocation API**: Browser requests user location access voluntarily; denies gracefully if permission is withheld.
@@ -88,11 +99,13 @@ TouristGuide/ (c:\PWA Project)
 │   ├── service-worker.js        # Offline caching strategy with sensitive route bypass (v2.0)
 │   └── offline.html             # Offline fallback page
 ├── templates/
-│   ├── base.html                # Master layout template (CSRF meta tag, navbar, footer)
+│   ├── base.html                # Master layout template (CSRF meta tag, navbar, PWA floating card, add-to-trip modal)
 │   ├── index.html               # Home page (Hero, stats, categories, nearby widget, featured grid)
-│   ├── places.html              # Browse, filter, sort, and paginate destinations
-│   ├── details.html             # Place details view (Directions, GPS coords, Web Share, visitor guide)
+│   ├── places.html              # Browse, filter, sort, and paginate 90+ destinations
+│   ├── details.html             # Place details view (Directions, GPS coords, Web Share, visitor guide, add-to-trip)
 │   ├── favorites.html           # Saved favorites page
+│   ├── itinerary.html           # Trip planner dashboard (Create trips, list active itineraries)
+│   ├── itinerary_detail.html    # Itinerary day-by-day plan, print voucher, multi-stop Google Maps route
 │   ├── login.html               # User login form
 │   ├── register.html            # User registration form
 │   ├── admin_login.html         # Admin login form
@@ -100,9 +113,10 @@ TouristGuide/ (c:\PWA Project)
 │   ├── 404.html                 # Custom 404 Not Found error page
 │   └── 500.html                 # Custom 500 Internal Server Error page
 ├── tests/
-│   └── test_app.py              # Automated test suite (24 unit tests covering auth, CRUD, nearby, CSRF)
+│   └── test_app.py              # Automated test suite (27 unit tests covering auth, CRUD, nearby, CSRF, itineraries)
 ├── app.py                       # Flask server & routes with CSRF, rate limiting, and Haversine API
 ├── database.py                  # Database abstraction (Production MySQL & Local SQLite fallback)
+├── seed_destinations.py         # Curated 91-destination seed script for database expansion
 ├── schema.sql                   # MySQL database creation & seed data script with GPS coordinates
 ├── generate_images.py           # Sample asset generator script
 ├── requirements.txt             # Python dependencies
@@ -143,15 +157,21 @@ cd "c:\PWA Project"
 python -m pip install -r requirements.txt
 ```
 
-### 3. Run Automated Test Suite
-Run the 24 automated unit tests:
+### 3. Seed Expanded Destinations (90+ Places)
+```bash
+python seed_destinations.py
+```
+
+### 4. Run Automated Test Suite
+Run the 27 automated unit tests:
 ```bash
 python -m unittest tests/test_app.py
 ```
 
-### 4. Start Local Development Server
+### 5. Start Local Development Server
 ```bash
 python app.py
+```
 ```
 Open **`http://127.0.0.1:5000`** in any web browser.
 
@@ -219,3 +239,9 @@ Vercel serverless functions execute inside ephemeral Docker containers where the
 
 #### Q5: How is CSRF (Cross-Site Request Forgery) mitigated?
 > **Answer**: We implemented session-bound cryptographic CSRF tokens using `secrets.token_hex(32)`. Every state-changing HTML form includes a hidden `csrf_token` input field, and AJAX requests transmit the token via the `X-CSRFToken` HTTP header. The `@app.before_request` hook validates the submitted token against the active session's expected token using timing-safe comparison (`secrets.compare_digest`).
+
+#### Q6: How does the Trip Planner & Itinerary Builder function?
+> **Answer**: The Trip Planner is a relational database module comprising `itineraries` and `itinerary_items` linked by foreign keys with cascading deletions. Authenticated users can create trips and add destination stops categorized by day numbers with personal notes. The application dynamically compiles these stops and generates a multi-point Google Maps navigation URL (`origin`, `destination`, and `waypoints`) so travelers can execute their daily routes with live turn-by-turn navigation.
+
+#### Q7: How does the PWA installation prompt avoid degrading user experience?
+> **Answer**: Rather than displaying a full-width fixed banner that blocks navigation menus, footers, and interactive controls, Explore India uses a floating, responsive card (`.pwa-floating-card`) anchored to the bottom-right corner. It listens for the browser's `beforeinstallprompt` event and includes a clear dismiss action with `sessionStorage` persistence, preventing repetitive intrusive prompts across page navigations.
