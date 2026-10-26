@@ -1,5 +1,6 @@
 import os
 import sys
+from urllib.parse import parse_qs, urlencode
 
 # Ensure root directory is on sys.path
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -14,9 +15,13 @@ class VercelPathMiddleware:
         self.wsgi_app = wsgi_app
 
     def __call__(self, environ, start_response):
-        matched_path = environ.get('HTTP_X_MATCHED_PATH') or environ.get('HTTP_X_FORWARDED_URI')
-        if matched_path and matched_path not in ('/api/index', '/api/index.py'):
-            environ['PATH_INFO'] = matched_path.split('?')[0]
+        query_string = environ.get('QUERY_STRING', '')
+        if '__path' in query_string:
+            params = parse_qs(query_string, keep_blank_values=True)
+            if '__path' in params:
+                dest_path = params.pop('__path')[0].lstrip('/')
+                environ['PATH_INFO'] = '/' + dest_path
+                environ['QUERY_STRING'] = urlencode(params, doseq=True)
         elif environ.get('PATH_INFO') in ('/api/index', '/api/index.py'):
             environ['PATH_INFO'] = '/'
         return self.wsgi_app(environ, start_response)
