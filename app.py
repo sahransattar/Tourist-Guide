@@ -20,6 +20,7 @@ from flask import (
     url_for, session, flash, jsonify
 )
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from database import (
     get_db, is_mysql, query_db, check_db_status,
@@ -52,23 +53,16 @@ class VercelPathMiddleware:
             environ['PATH_INFO'] = '/'
         return self.wsgi_app(environ, start_response)
 
-app.wsgi_app = VercelPathMiddleware(app.wsgi_app)
+# Apply both ProxyFix (for HTTPS headers behind Vercel edge) and VercelPathMiddleware
+app.wsgi_app = ProxyFix(VercelPathMiddleware(app.wsgi_app), x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
-# Configure Secret Key
+# Configure Secret Key: use environment variable, with a deterministic production fallback
+# so that all serverless containers and cold starts share the same session encryption key.
 configured_secret = os.environ.get('SECRET_KEY')
 if configured_secret:
     app.secret_key = configured_secret
 else:
-    if IS_PRODUCTION:
-        # In production, warn if static secret is not configured
-        app.secret_key = secrets.token_hex(32)
-        logger.warning(
-            "[SECURITY WARNING] SECRET_KEY environment variable is not configured! "
-            "A temporary random key was generated for this process. "
-            "Please set a persistent SECRET_KEY in your Vercel Project Environment Variables."
-        )
-    else:
-        app.secret_key = 'tourist_pwa_bca_secret_key_2026_dev'
+    app.secret_key = '7f5c2b9a4d8e1f0c3b5a7d9e2f4a6b8c1d3e5f7a9b0c2d4e6f8a1b3c5d7e9f0a'
 
 # Session Cookie Security Configuration
 app.config['SESSION_COOKIE_HTTPONLY'] = True
