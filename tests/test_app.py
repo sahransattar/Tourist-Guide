@@ -633,6 +633,42 @@ class TouristGuideAppTestCase(unittest.TestCase):
         self.assertEqual(del_res.status_code, 200)
         self.assertIn(b'deleted successfully', del_res.data)
 
+    def test_offline_page_and_api_endpoints(self):
+        """Verify /offline, /api/place/<id>, and /api/favorites behave according to spec."""
+        # 1. Offline page
+        res_offline = self.client.get('/offline')
+        self.assertEqual(res_offline.status_code, 200)
+        self.assertIn(b'Offline', res_offline.data)
+
+        # 2. Single place API
+        res_place = self.client.get('/api/place/1')
+        self.assertEqual(res_place.status_code, 200)
+        data = res_place.get_json()
+        self.assertTrue(data.get('success'))
+        self.assertEqual(data.get('place', {}).get('name'), 'Taj Mahal')
+
+        # 3. Missing place API
+        res_missing = self.client.get('/api/place/99999')
+        self.assertEqual(res_missing.status_code, 404)
+
+        # 4. Unauthenticated favorites API
+        res_fav_unauth = self.client.get('/api/favorites')
+        self.assertEqual(res_fav_unauth.status_code, 401)
+
+    def test_sahran_account_authentication(self):
+        """Verify that primary user sahransatt12@gmail.com can log in successfully."""
+        get_res = self.client.get('/login')
+        csrf_token = self.get_csrf_token(get_res.data)
+
+        res = self.client.post('/login', data={
+            'csrf_token': csrf_token,
+            'email': 'sahransatt12@gmail.com',
+            'password': 'sahran12'
+        }, follow_redirects=True)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b'Welcome back', res.data)
+        self.assertIn(b'Sahran', res.data)
+
 
 class DatabaseProductionBehaviorTestCase(unittest.TestCase):
 

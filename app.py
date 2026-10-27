@@ -575,25 +575,63 @@ def favorites():
     return render_template('favorites.html', places=fav_places)
 
 
-@app.route('/api/favorites/toggle', methods=['POST'])
-def toggle_favorite():
+@app.route('/offline')
+def offline():
+    """Serves the offline fallback page."""
+    return render_template('offline.html')
+
+
+@app.route('/api/favorites')
+def api_favorites():
+    """Returns active user's saved favorites in JSON format."""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Authentication required. Please login.', 'favorites': []}), 401
+    user_id = session['user_id']
+    query = """
+        SELECT p.*, f.favorite_id, f.created_at as saved_at
+        FROM favorites f
+        JOIN tourist_places p ON f.place_id = p.place_id
+        WHERE f.user_id = %s
+        ORDER BY f.favorite_id DESC
     """
-    AJAX API endpoint for adding or removing a favorite place.
+    try:
+        fav_places = query_db(query, (user_id,), fetchall=True) or []
+        return jsonify({'success': True, 'favorites': fav_places})
+    except Exception as e:
+        logger.error("Error retrieving api_favorites for user_id=%s: %s", user_id, e)
+        return jsonify({'success': False, 'message': 'Database error occurred.', 'favorites': []}), 500
+
+
+@app.route('/api/favorites/toggle', methods=['POST'])
+@app.route('/favorite/toggle/<int:place_id>', methods=['POST'])
+def toggle_favorite(place_id=None):
+    """
+    AJAX and standard POST endpoint for adding or removing a favorite place.
     Enforces user authorization strictly from verified session.
     """
     if 'user_id' not in session:
-        return jsonify({'success': False, 'message': 'Authentication required. Please login.'}), 401
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Authentication required. Please login.'}), 401
+        flash("Please log in to save favorite destinations.", "warning")
+        return redirect(url_for('login', next=request.referrer or url_for('home')))
 
-    data = request.get_json(silent=True) or {}
-    place_id = data.get('place_id')
+    if place_id is None:
+        data = request.get_json(silent=True) or request.form
+        place_id = data.get('place_id')
 
     if not place_id:
-        return jsonify({'success': False, 'message': 'Invalid place ID.'}), 400
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Invalid place ID.'}), 400
+        flash("Invalid destination ID.", "danger")
+        return redirect(request.referrer or url_for('home'))
 
     try:
         place_id = int(place_id)
     except (ValueError, TypeError):
-        return jsonify({'success': False, 'message': 'Place ID must be an integer.'}), 400
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Place ID must be an integer.'}), 400
+        flash("Invalid destination ID.", "danger")
+        return redirect(request.referrer or url_for('home'))
 
     user_id = session['user_id']
 
@@ -606,21 +644,30 @@ def toggle_favorite():
 
         if existing:
             query_db("DELETE FROM favorites WHERE user_id = %s AND place_id = %s", (user_id, place_id), commit=True)
-            return jsonify({
-                'success': True,
-                'is_favorite': False,
-                'message': 'Removed from your favorites.'
-            })
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': True,
+                    'is_favorite': False,
+                    'message': 'Removed from your favorites.'
+                })
+            flash("Removed from your favorites.", "info")
+            return redirect(request.referrer or url_for('favorites'))
         else:
             query_db("INSERT INTO favorites (user_id, place_id) VALUES (%s, %s)", (user_id, place_id), commit=True)
-            return jsonify({
-                'success': True,
-                'is_favorite': True,
-                'message': 'Added to your favorites!'
-            })
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': True,
+                    'is_favorite': True,
+                    'message': 'Added to your favorites!'
+                })
+            flash("Added to your favorites!", "success")
+            return redirect(request.referrer or url_for('favorites'))
     except Exception as e:
         logger.error("Error toggling favorite for user_id=%s, place_id=%s: %s", user_id, place_id, e)
-        return jsonify({'success': False, 'message': 'Database error occurred. Please try again.'}), 500
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Database error occurred. Please try again.'}), 500
+        flash("Error updating favorites.", "danger")
+        return redirect(request.referrer or url_for('home'))
 
 
 # ---------------------------------------------------------
@@ -708,17 +755,24 @@ def itinerary_detail(itinerary_id):
 
 
 @app.route('/api/itinerary/create', methods=['POST'])
+@app.route('/itinerary/create', methods=['POST'])
 def api_itinerary_create():
     """Creates a new trip itinerary for authenticated user."""
     if 'user_id' not in session:
-        return jsonify({'success': False, 'message': 'Authentication required. Please login.'}), 401
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Authentication required. Please login.'}), 401
+        flash("Please log in to create trip itineraries.", "warning")
+        return redirect(url_for('login', next=url_for('itineraries')))
 
     data = request.get_json(silent=True) or request.form
     title = (data.get('title') or '').strip()
     description = (data.get('description') or '').strip()
 
     if not title:
-        return jsonify({'success': False, 'message': 'Trip title is required.'}), 400
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Trip title is required.'}), 400
+        flash("Trip title is required.", "danger")
+        return redirect(url_for('itineraries'))
 
     user_id = session['user_id']
     try:
@@ -727,27 +781,29 @@ def api_itinerary_create():
             (user_id, title, description),
             commit=True
         )
-        if request.is_json:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': True, 'itinerary_id': itinerary_id, 'message': f"Trip '{title}' created!"})
         flash(f"Trip '{title}' created successfully!", "success")
         return redirect(url_for('itinerary_detail', itinerary_id=itinerary_id))
     except Exception as e:
         logger.error("Error creating itinerary for user_id=%s: %s", user_id, e)
-        if request.is_json:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': False, 'message': 'Failed to create trip.'}), 500
         flash("Could not create trip. Please try again.", "danger")
         return redirect(url_for('itineraries'))
 
 
 @app.route('/api/itinerary/add_place', methods=['POST'])
-def api_itinerary_add_place():
+@app.route('/itinerary/add_place', methods=['POST'])
+@app.route('/itinerary/<int:itinerary_id>/add', methods=['POST'])
+def api_itinerary_add_place(itinerary_id=None):
     """Adds a tourist destination stop to an itinerary."""
     if 'user_id' not in session:
         return jsonify({'success': False, 'message': 'Authentication required. Please login.'}), 401
 
     data = request.get_json(silent=True) or request.form
     try:
-        itinerary_id = int(data.get('itinerary_id'))
+        itin_id = int(itinerary_id or data.get('itinerary_id'))
         place_id = int(data.get('place_id'))
         day_number = max(1, int(data.get('day_number', 1)))
     except (ValueError, TypeError):
@@ -758,31 +814,39 @@ def api_itinerary_add_place():
 
     # Verify ownership of itinerary
     try:
-        trip = query_db("SELECT itinerary_id FROM itineraries WHERE itinerary_id = %s AND user_id = %s", (itinerary_id, user_id), fetchone=True)
+        trip = query_db("SELECT itinerary_id FROM itineraries WHERE itinerary_id = %s AND user_id = %s", (itin_id, user_id), fetchone=True)
         if not trip:
             return jsonify({'success': False, 'message': 'Itinerary not found or access denied.'}), 403
 
         query_db(
             """INSERT INTO itinerary_items (itinerary_id, place_id, day_number, notes)
                VALUES (%s, %s, %s, %s)""",
-            (itinerary_id, place_id, day_number, notes),
+            (itin_id, place_id, day_number, notes),
             commit=True
         )
-        return jsonify({'success': True, 'message': 'Destination added to trip itinerary!'})
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': 'Destination added to trip itinerary!'})
+        flash("Destination added to your trip itinerary!", "success")
+        return redirect(url_for('itinerary_detail', itinerary_id=itin_id))
     except Exception as e:
-        logger.error("Error adding stop to itinerary_id=%s: %s", itinerary_id, e)
-        return jsonify({'success': False, 'message': 'Could not add destination.'}), 500
+        logger.error("Error adding stop to itinerary_id=%s: %s", itin_id, e)
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Could not add destination.'}), 500
+        flash("Could not add destination to trip.", "danger")
+        return redirect(url_for('itinerary_detail', itinerary_id=itin_id))
 
 
 @app.route('/api/itinerary/remove_item', methods=['POST'])
-def api_itinerary_remove_item():
+@app.route('/itinerary/remove_item', methods=['POST'])
+@app.route('/itinerary/item/<int:item_id>/delete', methods=['POST'])
+def api_itinerary_remove_item(item_id=None):
     """Removes a stop from an itinerary."""
     if 'user_id' not in session:
         return jsonify({'success': False, 'message': 'Authentication required.'}), 401
 
     data = request.get_json(silent=True) or request.form
     try:
-        item_id = int(data.get('item_id'))
+        itm_id = int(item_id or data.get('item_id'))
     except (ValueError, TypeError):
         return jsonify({'success': False, 'message': 'Valid item_id is required.'}), 400
 
@@ -793,20 +857,27 @@ def api_itinerary_remove_item():
                FROM itinerary_items it 
                JOIN itineraries i ON it.itinerary_id = i.itinerary_id 
                WHERE it.item_id = %s AND i.user_id = %s""",
-            (item_id, user_id),
+            (itm_id, user_id),
             fetchone=True
         )
         if not item:
             return jsonify({'success': False, 'message': 'Stop not found or access denied.'}), 403
 
-        query_db("DELETE FROM itinerary_items WHERE item_id = %s", (item_id,), commit=True)
-        return jsonify({'success': True, 'message': 'Stop removed from itinerary.'})
+        query_db("DELETE FROM itinerary_items WHERE item_id = %s", (itm_id,), commit=True)
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': 'Stop removed from itinerary.'})
+        flash("Stop removed from itinerary.", "info")
+        return redirect(url_for('itinerary_detail', itinerary_id=item['itinerary_id']))
     except Exception as e:
-        logger.error("Error removing item_id=%s: %s", item_id, e)
-        return jsonify({'success': False, 'message': 'Could not remove stop.'}), 500
+        logger.error("Error removing item_id=%s: %s", itm_id, e)
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Could not remove stop.'}), 500
+        flash("Could not remove stop.", "danger")
+        return redirect(url_for('itineraries'))
 
 
 @app.route('/api/itinerary/delete/<int:itinerary_id>', methods=['POST'])
+@app.route('/itinerary/delete/<int:itinerary_id>', methods=['POST'])
 def api_itinerary_delete(itinerary_id):
     """Deletes an entire itinerary."""
     if 'user_id' not in session:
@@ -842,10 +913,23 @@ def api_places():
     """Public API endpoint returning all places in JSON format for offline caching."""
     try:
         places = query_db("SELECT * FROM tourist_places ORDER BY name ASC", fetchall=True) or []
-        return jsonify({'success': True, 'places': places})
+        return jsonify({'success': True, 'places': places, 'total': len(places)})
     except Exception as e:
         logger.error("Error in api_places: %s", e)
         return jsonify({'success': False, 'places': [], 'error': 'Could not fetch places.'}), 500
+
+
+@app.route('/api/place/<int:place_id>')
+def api_place_details(place_id):
+    """Public API endpoint returning single place details in JSON format."""
+    try:
+        place = query_db("SELECT * FROM tourist_places WHERE place_id = %s", (place_id,), fetchone=True)
+        if not place:
+            return jsonify({'success': False, 'message': 'Place not found.'}), 404
+        return jsonify({'success': True, 'place': place})
+    except Exception as e:
+        logger.error("Error in api_place_details for place_id=%s: %s", place_id, e)
+        return jsonify({'success': False, 'message': 'Internal error.'}), 500
 
 
 @app.route('/api/nearby')
