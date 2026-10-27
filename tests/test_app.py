@@ -36,7 +36,7 @@ class TouristGuideAppTestCase(unittest.TestCase):
         database.db_instance.use_mysql = False
         database.db_instance._init_sqlite_schema()
         database.query_db(
-            "DELETE FROM users WHERE email NOT IN ('john@example.com', 'alice@example.com')",
+            "DELETE FROM users WHERE email NOT IN ('john@example.com', 'alice@example.com', 'sahransatt12@gmail.com')",
             commit=True
         )
         database.query_db("DELETE FROM favorites", commit=True)

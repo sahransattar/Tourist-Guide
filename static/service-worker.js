@@ -1,10 +1,10 @@
 /* =========================================================
    Tourist Guide PWA - Service Worker (service-worker.js)
-   Cache API & Offline Caching Strategies (v2.0)
+   Cache API & Offline Caching Strategies (v2.1)
    Protects sensitive authenticated routes from stale caching
    ========================================================= */
 
-const CACHE_NAME = 'tourist-guide-v2.0';
+const CACHE_NAME = 'tourist-guide-v2.1';
 const STATIC_ASSETS = [
   '/',
   '/places',
@@ -32,7 +32,9 @@ const SENSITIVE_ROUTES = [
   '/register',
   '/logout',
   '/favorites',
-  '/api/favorites'
+  '/api/favorites',
+  '/itinerary',
+  '/api/itinerary'
 ];
 
 // 1. Install Event: Cache Core Static Resources

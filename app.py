@@ -496,15 +496,15 @@ def login():
             is_valid = False
             needs_rehash = False
 
-            # Verify Werkzeug password hash
+            # Verify Werkzeug password hash (supports exact or trimmed whitespace)
             try:
-                if check_password_hash(stored_password, password):
+                if check_password_hash(stored_password, password) or check_password_hash(stored_password, password.strip()):
                     is_valid = True
             except Exception:
                 pass
 
             # Safe backward-compatibility: detect legacy plaintext password
-            if not is_valid and stored_password == password:
+            if not is_valid and (stored_password == password or stored_password == password.strip()):
                 is_valid = True
                 needs_rehash = True
 

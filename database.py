@@ -403,6 +403,14 @@ class DatabaseManager:
                     ('Alice Smith', 'alice@example.com', demo_hash)
                 )
 
+            # Ensure primary user account exists
+            cursor.execute("SELECT user_id FROM users WHERE email = 'sahransatt12@gmail.com'")
+            if not cursor.fetchone():
+                cursor.execute(
+                    "INSERT INTO users (name, email, password) VALUES (%s, %s, %s)",
+                    ('Sahran Sattar', 'sahransatt12@gmail.com', 'scrypt:32768:8:1$51OejXoPB0sC1p3r$5ca95959ad0f04df591d8480db89d53b9f67a637504ba42cb233b8a36fa17578ec0949d8544f8615e4785b9b736bca487b9b008d6c70b6d6101967a57a5e8486')
+                )
+
         conn.commit()
 
     def _init_sqlite_schema(self):
@@ -505,6 +513,14 @@ class DatabaseManager:
                 cursor.execute(
                     "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
                     ('Alice Smith', 'alice@example.com', demo_hash)
+                )
+
+            # Ensure primary user account exists
+            cursor.execute("SELECT user_id FROM users WHERE email = 'sahransatt12@gmail.com'")
+            if not cursor.fetchone():
+                cursor.execute(
+                    "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+                    ('Sahran Sattar', 'sahransatt12@gmail.com', 'scrypt:32768:8:1$51OejXoPB0sC1p3r$5ca95959ad0f04df591d8480db89d53b9f67a637504ba42cb233b8a36fa17578ec0949d8544f8615e4785b9b736bca487b9b008d6c70b6d6101967a57a5e8486')
                 )
 
             conn.commit()
